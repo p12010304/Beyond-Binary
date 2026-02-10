@@ -77,4 +77,3 @@ export interface AISummaryResult {
   action_items: ActionItem[]
   key_topics: string[]
 }
-;
