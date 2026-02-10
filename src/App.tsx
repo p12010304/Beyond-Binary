@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AccessibilityProvider } from '@/components/AccessibilityProvider'
@@ -8,6 +9,7 @@ import Schedule from '@/pages/Schedule'
 import Documents from '@/pages/Documents'
 import PromptHub from '@/pages/PromptHub'
 import Settings from '@/pages/Settings'
+import OnboardingWizard, { isOnboardingComplete } from '@/components/OnboardingWizard'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,9 +21,14 @@ const queryClient = new QueryClient({
 })
 
 function App() {
+  const [showOnboarding, setShowOnboarding] = useState(!isOnboardingComplete())
+
   return (
     <QueryClientProvider client={queryClient}>
       <AccessibilityProvider>
+        {showOnboarding && (
+          <OnboardingWizard onComplete={() => setShowOnboarding(false)} />
+        )}
         <BrowserRouter>
           <Routes>
             <Route element={<Layout />}>

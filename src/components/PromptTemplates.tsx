@@ -72,12 +72,16 @@ export const templates: PromptTemplate[] = [
 interface PromptTemplatesProps {
   onSelect: (template: PromptTemplate) => void
   className?: string
+  /** Limit the number of visible templates (for simplified/cognitive profiles) */
+  maxVisible?: number
 }
 
-export default function PromptTemplates({ onSelect, className }: PromptTemplatesProps) {
+export default function PromptTemplates({ onSelect, className, maxVisible }: PromptTemplatesProps) {
+  const visibleTemplates = maxVisible ? templates.slice(0, maxVisible) : templates
+
   return (
     <div className={cn('grid grid-cols-2 sm:grid-cols-3 gap-3', className)} role="list" aria-label="Prompt templates">
-      {templates.map((template) => (
+      {visibleTemplates.map((template) => (
         <Button
           key={template.id}
           variant="outline"
