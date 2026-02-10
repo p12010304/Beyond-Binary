@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor, Mic } from 'lucide-react'
+import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -8,8 +8,6 @@ import { useAccessibility } from '@/components/AccessibilityProvider'
 import type { DisabilityProfile, OutputMode, UserPreferences, ThemeMode } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { isElevenLabsAvailable, ELEVENLABS_VOICES } from '@/services/elevenLabsTtsService'
-import { getTranscriptionEngine } from '@/services/transcriptionService'
 
 const disabilityOptions: { value: DisabilityProfile; label: string; icon: React.ElementType; description: string }[] = [
   { value: 'visual', label: 'Visual', icon: Eye, description: 'Screen reader, audio output, high contrast' },
@@ -17,7 +15,7 @@ const disabilityOptions: { value: DisabilityProfile; label: string; icon: React.
   { value: 'cognitive', label: 'Cognitive', icon: Brain, description: 'Simplified UI, step-by-step guidance' },
   { value: 'dyslexia', label: 'Dyslexia', icon: Type, description: 'Audio alternatives, larger text, visual aids' },
   { value: 'motor', label: 'Motor', icon: Hand, description: 'Voice commands, large touch targets' },
-  { value: 'multiple', label: 'Multiple', icon: Brain, description: 'Combined accessibility features' },
+
 ]
 
 const outputModes: { value: OutputMode; label: string; description: string }[] = [
@@ -43,8 +41,16 @@ export default function Settings() {
   } = useAccessibility()
 
   const [localPrefs, setLocalPrefs] = useState<UserPreferences>({ ...preferences })
-  const [localProfile, setLocalProfile] = useState<DisabilityProfile | null>(disabilityProfile)
+  const [localProfiles, setLocalProfiles] = useState<DisabilityProfile[]>(
+  Array.isArray(disabilityProfile) ? disabilityProfile : (disabilityProfile ? [disabilityProfile] : [])
+)
   const [saved, setSaved] = useState(false)
+
+  const handleDisabilityToggle = (profile: DisabilityProfile) => {
+  setLocalProfiles((prev) =>
+    prev.includes(profile) ? prev.filter((p) => p !== profile) : [...prev, profile]
+  )
+}
 
   const handleOutputModeToggle = (mode: OutputMode) => {
     setLocalPrefs((prev) => ({
@@ -56,17 +62,18 @@ export default function Settings() {
   }
 
   const handleSave = () => {
-    setPreferences(localPrefs)
-    setDisabilityProfile(localProfile)
-    setSaved(true)
-    speak('Settings saved.')
-    setTimeout(() => setSaved(false), 3000)
-  }
+  setPreferences(localPrefs)
+  setDisabilityProfile(localProfiles)
+  setSaved(true)
+  speak('Settings saved.')
+  setTimeout(() => setSaved(false), 3000)
+}
 
-  const handleReset = () => {
-    setLocalPrefs({ ...defaultPreferences })
-    setLocalProfile(null)
-  }
+const handleReset = () => {
+  setLocalPrefs({ ...defaultPreferences })
+  setLocalProfiles([])
+}
+
 
   return (
     <div className="space-y-6">
@@ -86,40 +93,50 @@ export default function Settings() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" role="radiogroup" aria-label="Disability profile selection">
-            {disabilityOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setLocalProfile(option.value)}
-                className={cn(
-                  'flex flex-col items-start gap-2 rounded-[--radius-lg] border-2 p-4 text-left',
-                  'transition-all duration-[--duration-fast] ease-[--ease-out]',
-                  'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  localProfile === option.value
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border',
-                )}
-                role="radio"
-                aria-checked={localProfile === option.value}
-                aria-label={`${option.label}: ${option.description}`}
-              >
-                <option.icon
-                  className={cn('h-[1.125rem] w-[1.125rem]', localProfile === option.value ? 'text-primary' : 'text-muted-foreground')}
-                  aria-hidden="true"
-                />
-                <div>
-                  <p className="text-sm font-medium leading-tight">{option.label}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{option.description}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-          {localProfile && (
-            <Button variant="ghost" size="sm" className="mt-3" onClick={() => setLocalProfile(null)}>
-              Clear selection
-            </Button>
+  <div
+    className="grid grid-cols-2 sm:grid-cols-3 gap-4"
+    role="group"
+    aria-label="Disability profile selection"
+  >
+    {disabilityOptions.map((option) => {
+      const isSelected = localProfiles.includes(option.value)
+
+      return (
+        <button
+          key={option.value}
+          onClick={() => handleDisabilityToggle(option.value)}
+          className={cn(
+            'flex flex-col items-start gap-2 rounded-[--radius-lg] border-2 p-4 text-left',
+            'transition-all duration-[--duration-fast] ease-[--ease-out]',
+            'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            isSelected ? 'border-primary bg-primary/5' : 'border-border',
           )}
-        </CardContent>
+          aria-pressed={isSelected}
+          aria-label={`${option.label}: ${option.description}`}
+        >
+          <option.icon
+            className={cn(
+              'h-[1.125rem] w-[1.125rem]',
+              isSelected ? 'text-primary' : 'text-muted-foreground'
+            )}
+            aria-hidden="true"
+          />
+          <div>
+            <p className="text-sm font-medium leading-tight">{option.label}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{option.description}</p>
+          </div>
+        </button>
+      )
+    })}
+  </div>
+
+  {localProfiles.length > 0 && (
+    <Button variant="ghost" size="sm" className="mt-3" onClick={() => setLocalProfiles([])}>
+      Clear selection
+    </Button>
+  )}
+</CardContent>
+
       </Card>
 
       {/* Theme */}
@@ -144,91 +161,6 @@ export default function Settings() {
               </Button>
             ))}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Voice & Transcription */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Voice & Transcription</CardTitle>
-          <CardDescription>
-            Speech engines used for transcription and text-to-speech.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {/* STT engine indicator */}
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium leading-tight flex items-center gap-2">
-                <Mic className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                Speech-to-Text
-              </p>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                {getTranscriptionEngine() === 'groq'
-                  ? 'Groq Whisper (high accuracy, auto-punctuated)'
-                  : getTranscriptionEngine() === 'web-speech'
-                    ? 'Browser Web Speech API (requires Chrome/Edge)'
-                    : 'Not available in this browser'}
-              </p>
-            </div>
-            <Badge variant={getTranscriptionEngine() !== 'none' ? 'success' : 'secondary'}>
-              {getTranscriptionEngine() === 'groq' ? 'Groq' : getTranscriptionEngine() === 'web-speech' ? 'Browser' : 'None'}
-            </Badge>
-          </div>
-
-          {/* TTS engine indicator */}
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium leading-tight flex items-center gap-2">
-                <Volume2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                Text-to-Speech
-              </p>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-                {isElevenLabsAvailable()
-                  ? 'ElevenLabs (natural voice)'
-                  : 'Browser SpeechSynthesis (default OS voice)'}
-              </p>
-            </div>
-            <Badge variant={isElevenLabsAvailable() ? 'success' : 'secondary'}>
-              {isElevenLabsAvailable() ? 'ElevenLabs' : 'Browser'}
-            </Badge>
-          </div>
-
-          {/* ElevenLabs voice picker */}
-          {isElevenLabsAvailable() && (
-            <div>
-              <label htmlFor="tts-voice-select" className="text-sm font-medium mb-1.5 block leading-tight">
-                Voice
-              </label>
-              <select
-                id="tts-voice-select"
-                value={localPrefs.tts_voice}
-                onChange={(e) => setLocalPrefs((p) => ({ ...p, tts_voice: e.target.value }))}
-                className={cn(
-                  'flex h-10 w-full max-w-xs rounded-[--radius-md] border border-input bg-card/50 px-3 py-2 text-sm neu-inset',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
-                )}
-                aria-label="Select ElevenLabs voice"
-              >
-                {ELEVENLABS_VOICES.map((voice) => (
-                  <option key={voice.id} value={voice.id}>
-                    {voice.name} — {voice.description}
-                  </option>
-                ))}
-              </select>
-              <div className="mt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => speak(`Hello! This is a preview of the selected voice.`)}
-                  aria-label="Preview selected voice"
-                >
-                  <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  Preview Voice
-                </Button>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
