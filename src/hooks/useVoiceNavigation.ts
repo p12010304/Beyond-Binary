@@ -133,7 +133,7 @@ export function useVoiceNavigation(): UseVoiceNavigationReturn {
         setTranscript(text)
 
         if (isFinal && text.trim()) {
-          const matched = matchAndExecute(text, navMode)
+          matchAndExecute(text, navMode)
           // Maintain listening state until PTT release, regardless of match
         }
       },
@@ -187,12 +187,7 @@ export function useVoiceNavigation(): UseVoiceNavigationReturn {
       const session = sessionRef.current
       sessionRef.current = null
       
-      // Use abort if available for immediate stop
-      if (session.abort) {
-        session.abort()
-      } else {
-        session.stop()
-      }
+      session.stop()
     }
     
     setIsListening(false)

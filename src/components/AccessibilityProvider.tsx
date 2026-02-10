@@ -33,6 +33,12 @@ interface AccessibilityContextType {
   resolvedTheme: 'light' | 'dark'
   setTheme: (mode: ThemeMode) => void
   ttsProvider: TtsProvider
+  /** Derived from output_mode: user wants voice/audio output */
+  wantsVoice: boolean
+  /** Derived from output_mode: user wants haptic/vibration feedback */
+  wantsHaptic: boolean
+  /** Derived from output_mode: user wants simplified/plain-language UI */
+  wantsSimplified: boolean
 }
 
 const AccessibilityContext = createContext<AccessibilityContextType | null>(null)
@@ -83,6 +89,11 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     preferences.theme === 'system' ? systemTheme : preferences.theme
 
   const ttsProvider: TtsProvider = isElevenLabsAvailable() ? 'elevenlabs' : 'browser'
+
+  // Derived from output_mode for easy consumption across the app
+  const wantsVoice = preferences.output_mode.includes('voice')
+  const wantsHaptic = preferences.output_mode.includes('haptic')
+  const wantsSimplified = preferences.output_mode.includes('simplified') || preferences.simplified_ui
 
   // Listen for system theme changes
   useEffect(() => {
@@ -230,12 +241,13 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     speakBrowser(text)
   }, [preferences.tts_voice, stopSpeaking, speakBrowser, resetSpeechState])
 
-  // Haptic feedback
+  // Haptic feedback - respects both the boolean toggle and output_mode
   const vibrate = useCallback((pattern: number | number[] = 200) => {
-    if (preferences.haptic_feedback && 'vibrate' in navigator) {
+    const shouldVibrate = preferences.haptic_feedback || preferences.output_mode.includes('haptic')
+    if (shouldVibrate && 'vibrate' in navigator) {
       navigator.vibrate(pattern)
     }
-  }, [preferences.haptic_feedback])
+  }, [preferences.haptic_feedback, preferences.output_mode])
 
   return (
     <AccessibilityContext.Provider
@@ -258,6 +270,9 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         resolvedTheme,
         setTheme,
         ttsProvider,
+        wantsVoice,
+        wantsHaptic,
+        wantsSimplified,
       }}
     >
       {children}

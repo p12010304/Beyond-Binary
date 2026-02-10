@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor, Mic } from 'lucide-react'
+import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor, Mic, CheckCircle2, RefreshCw } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -10,6 +10,7 @@ import { defaultPreferences } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { isElevenLabsAvailable, ELEVENLABS_VOICES } from '@/services/elevenLabsTtsService'
 import { getTranscriptionEngine } from '@/services/transcriptionService'
+import { applyProfilePreset, profilePresets } from '@/lib/profilePresets'
 
 const disabilityOptions: { value: DisabilityProfile; label: string; icon: React.ElementType; description: string }[] = [
   { value: 'visual', label: 'Visual', icon: Eye, description: 'Screen reader, audio output, high contrast' },
@@ -39,12 +40,35 @@ export default function Settings() {
     setPreferences,
     disabilityProfile,
     setDisabilityProfile,
+    setTheme,
     speak,
   } = useAccessibility()
 
   const [localPrefs, setLocalPrefs] = useState<UserPreferences>({ ...preferences })
   const [localProfile, setLocalProfile] = useState<DisabilityProfile | null>(disabilityProfile)
   const [saved, setSaved] = useState(false)
+  const [profileApplied, setProfileApplied] = useState<string | null>(null)
+
+  const handleProfileSelect = (profile: DisabilityProfile) => {
+    setLocalProfile(profile)
+    // Auto-configure preferences based on profile
+    const newPrefs = applyProfilePreset(localPrefs, profile)
+    setLocalPrefs(newPrefs)
+    const preset = profilePresets[profile]
+    setProfileApplied(preset.label)
+    setTimeout(() => setProfileApplied(null), 4000)
+  }
+
+  const handleProfileClear = () => {
+    setLocalProfile(null)
+    setLocalPrefs({ ...defaultPreferences })
+    setProfileApplied(null)
+  }
+
+  const handleRerunOnboarding = () => {
+    localStorage.removeItem('accessadmin_onboarding_complete')
+    window.location.reload()
+  }
 
   const handleOutputModeToggle = (mode: OutputMode) => {
     setLocalPrefs((prev) => ({
@@ -90,7 +114,7 @@ export default function Settings() {
             {disabilityOptions.map((option) => (
               <button
                 key={option.value}
-                onClick={() => setLocalProfile(option.value)}
+                onClick={() => handleProfileSelect(option.value)}
                 className={cn(
                   'flex flex-col items-start gap-2 rounded-[--radius-lg] border-2 p-4 text-left',
                   'transition-all duration-[--duration-fast] ease-[--ease-out]',
@@ -115,9 +139,20 @@ export default function Settings() {
             ))}
           </div>
           {localProfile && (
-            <Button variant="ghost" size="sm" className="mt-3" onClick={() => setLocalProfile(null)}>
+            <Button variant="ghost" size="sm" className="mt-3" onClick={handleProfileClear}>
               Clear selection
             </Button>
+          )}
+
+          {profileApplied && (
+            <div
+              className="mt-3 flex items-center gap-2 rounded-[--radius-md] bg-success/10 border border-success/30 px-3 py-2 text-sm text-success"
+              role="status"
+              aria-live="polite"
+            >
+              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Settings auto-configured for {profileApplied}. You can adjust below.
+            </div>
           )}
         </CardContent>
       </Card>
@@ -134,7 +169,10 @@ export default function Settings() {
               <Button
                 key={opt.value}
                 variant={localPrefs.theme === opt.value ? 'default' : 'outline'}
-                onClick={() => setLocalPrefs((p) => ({ ...p, theme: opt.value }))}
+                onClick={() => {
+                  setLocalPrefs((p) => ({ ...p, theme: opt.value }))
+                  setTheme(opt.value) // Apply immediately so the user sees the change
+                }}
                 role="radio"
                 aria-checked={localPrefs.theme === opt.value}
                 aria-label={`${opt.label} theme`}
@@ -380,7 +418,7 @@ export default function Settings() {
       </Card>
 
       {/* Save / Reset */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button onClick={handleSave}>
           <Save className="h-4 w-4" aria-hidden="true" />
           Save Settings
@@ -388,6 +426,10 @@ export default function Settings() {
         <Button onClick={handleReset} variant="outline">
           <RotateCcw className="h-4 w-4" aria-hidden="true" />
           Reset to Defaults
+        </Button>
+        <Button onClick={handleRerunOnboarding} variant="ghost">
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          Re-run Setup Wizard
         </Button>
         {saved && (
           <Badge variant="success" aria-live="polite">
