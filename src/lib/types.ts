@@ -1,8 +1,6 @@
 // Application-level types
 
-export type DisabilityProfile = 'visual' | 'hearing' | 'cognitive' | 'dyslexia' | 'motor' 
-export type DisabilityProfiles = DisabilityProfile[]
-
+export type DisabilityProfile = 'visual' | 'hearing' | 'cognitive' | 'dyslexia' | 'motor' | 'multiple'
 
 export type OutputMode = 'voice' | 'visual' | 'haptic' | 'simplified'
 
@@ -17,6 +15,7 @@ export interface UserPreferences {
   haptic_feedback: boolean
   auto_tts: boolean
   simplified_ui: boolean
+  tts_voice: string
 }
 
 export const defaultPreferences: UserPreferences = {
@@ -28,15 +27,15 @@ export const defaultPreferences: UserPreferences = {
   haptic_feedback: false,
   auto_tts: false,
   simplified_ui: false,
+  tts_voice: '21m00Tcm4TlvDq8ikWAM', // ElevenLabs Rachel
 }
 
 export interface Profile {
   id: string
-  disability_profile: DisabilityProfiles
+  disability_profile: DisabilityProfile | null
   preferences: UserPreferences
   created_at: string
 }
-
 
 export interface ActionItem {
   task: string
