@@ -32,6 +32,7 @@ export interface Database {
           transcript: string
           summary: string
           action_items: Record<string, unknown>[]
+          audio_path: string | null
           created_at: string
         }
         Insert: {
@@ -41,6 +42,7 @@ export interface Database {
           transcript?: string
           summary?: string
           action_items?: Record<string, unknown>[]
+          audio_path?: string | null
           created_at?: string
         }
         Update: {
@@ -50,6 +52,7 @@ export interface Database {
           transcript?: string
           summary?: string
           action_items?: Record<string, unknown>[]
+          audio_path?: string | null
           created_at?: string
         }
       }
