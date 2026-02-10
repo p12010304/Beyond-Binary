@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   createTranscriptionSession,
   isSpeechRecognitionSupported,
 } from '@/services/transcriptionService'
+import { useAppStore } from '@/store/appStore'
 
 export interface UseTranscriptionReturn {
   /** True while the microphone is initializing (before audio capture begins) */
@@ -19,12 +20,14 @@ export interface UseTranscriptionReturn {
 }
 
 export function useTranscription(): UseTranscriptionReturn {
+  const { voiceNavigationActive } = useAppStore()
   const [isInitializing, setIsInitializing] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [interimTranscript, setInterimTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const sessionRef = useRef<{ start: () => void; stop: () => void } | null>(null)
+  const pausedByNavigationRef = useRef(false)
   const isSupported = isSpeechRecognitionSupported()
 
   const startListening = useCallback(() => {
@@ -75,6 +78,10 @@ export function useTranscription(): UseTranscriptionReturn {
       sessionRef.current = null // Clear ref before stop to prevent auto-restart
       session.stop()
     }
+    
+    // Explicit stop should prevent auto-resume from voice navigation
+    pausedByNavigationRef.current = false
+    
     setIsInitializing(false)
     setIsListening(false)
     setInterimTranscript('')
@@ -84,6 +91,31 @@ export function useTranscription(): UseTranscriptionReturn {
     setTranscript('')
     setInterimTranscript('')
   }, [])
+
+  // Pause transcription when voice navigation is active
+  useEffect(() => {
+    if (voiceNavigationActive && isListening) {
+      console.log('[Transcription] Pausing for voice navigation')
+      pausedByNavigationRef.current = true
+      
+      // CRITICAL: Clear sessionRef BEFORE stopping to prevent auto-restart in onEnd
+      if (sessionRef.current) {
+        const session = sessionRef.current
+        sessionRef.current = null 
+        session.stop()
+      }
+      
+      setIsListening(false)
+      setIsInitializing(false)
+    } else if (!voiceNavigationActive && pausedByNavigationRef.current) {
+      console.log('[Transcription] Resuming after voice navigation')
+      pausedByNavigationRef.current = false
+      // Auto-resume after a short delay
+      setTimeout(() => {
+        startListening()
+      }, 300)
+    }
+  }, [voiceNavigationActive, isListening, startListening])
 
   return {
     isInitializing,

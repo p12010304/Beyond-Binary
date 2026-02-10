@@ -33,6 +33,10 @@ interface AppState {
   sidebarCollapsed: boolean
   setSidebarCollapsed: (collapsed: boolean) => void
 
+  // Voice navigation priority
+  voiceNavigationActive: boolean
+  setVoiceNavigationActive: (active: boolean) => void
+
   // Meeting state
   currentMeetingId: string | null
   setCurrentMeetingId: (id: string | null) => void
@@ -62,6 +66,9 @@ export const useAppStore = create<AppState>((set) => ({
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed))
     set({ sidebarCollapsed: collapsed })
   },
+
+  voiceNavigationActive: false,
+  setVoiceNavigationActive: (active) => set({ voiceNavigationActive: active }),
 
   currentMeetingId: null,
   setCurrentMeetingId: (id) => set({ currentMeetingId: id }),

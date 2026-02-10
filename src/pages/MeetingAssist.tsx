@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -7,6 +7,7 @@ import SpeechPlayer from '@/components/SpeechPlayer'
 import TranscriptDisplay from '@/components/TranscriptDisplay'
 import ActionItems from '@/components/ActionItems'
 import { useTranscription } from '@/hooks/useTranscription'
+import { useVoiceNavigation } from '@/hooks/useVoiceNavigation'
 import { useAccessibility } from '@/components/AccessibilityProvider'
 import { summarizeMeeting } from '@/services/aiService'
 import type { AISummaryResult, ActionItem } from '@/lib/types'
@@ -24,6 +25,7 @@ export default function MeetingAssist() {
     resetTranscript,
   } = useTranscription()
 
+  const { registerAction } = useVoiceNavigation()
   const { speak, stopSpeaking, speechStatus, vibrate, preferences } = useAccessibility()
 
   const [summary, setSummary] = useState<AISummaryResult | null>(null)
@@ -77,12 +79,108 @@ export default function MeetingAssist() {
     )
   }
 
+  // Register voice navigation actions
+  useEffect(() => {
+    const cleanups: (() => void)[] = []
+
+    // Start recording
+    cleanups.push(
+      registerAction('meeting-start', ['start', 'record', 'begin', 'start recording'], () => {
+        if (!isListening && !isInitializing) {
+          startListening()
+          speak('Recording started')
+        }
+      })
+    )
+
+    // Stop recording
+    cleanups.push(
+      registerAction('meeting-stop', ['stop', 'pause', 'stop recording'], () => {
+        if (isListening) {
+          stopListening()
+          speak('Recording stopped')
+        }
+      })
+    )
+
+    // Summarize
+    cleanups.push(
+      registerAction('meeting-summarize', ['summarize', 'summary', 'analyze'], async () => {
+        if (!transcript || isProcessing) return
+        setIsProcessing(true)
+        setAiError(null)
+        speak('Generating summary')
+
+        try {
+          const result = await summarizeMeeting(transcript)
+          setSummary(result)
+          setActionItems(result.action_items)
+          vibrate([100, 50, 100])
+
+          if (preferences.auto_tts) {
+            speak(`Summary: ${result.summary}`)
+          }
+        } catch (err) {
+          setAiError(err instanceof Error ? err.message : 'Failed to generate summary')
+        } finally {
+          setIsProcessing(false)
+        }
+      })
+    )
+
+    // Read aloud
+    cleanups.push(
+      registerAction('meeting-read', ['read', 'speak', 'read aloud'], () => {
+        if (summary) {
+          speak(`Meeting summary: ${summary.summary}. Action items: ${actionItems.map((a) => a.task).join('. ')}`)
+        } else if (transcript) {
+          speak(transcript)
+        }
+      })
+    )
+
+    // Reset
+    cleanups.push(
+      registerAction('meeting-reset', ['reset', 'clear', 'new'], () => {
+        stopListening()
+        resetTranscript()
+        setSummary(null)
+        setActionItems([])
+        setAiError(null)
+        stopSpeaking()
+        speak('Reset complete')
+      })
+    )
+
+    // Cleanup all registrations on unmount
+    return () => {
+      cleanups.forEach((cleanup) => cleanup())
+    }
+  }, [registerAction, isListening, isInitializing, transcript, isProcessing, summary, actionItems, startListening, stopListening, resetTranscript, speak, stopSpeaking, vibrate, preferences.auto_tts])
+
+  // Keyboard shortcut: Press Enter to stop recording
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // If pressing Enter while recording is active, stop it
+      if (e.key === 'Enter' && isListening) {
+        e.preventDefault()
+        stopListening()
+        // speak('Recording stopped') // Optional feedback
+        vibrate(100)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isListening, stopListening, vibrate])
+  
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold tracking-tight">Meeting Assist</h2>
         <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
           Transcribe speech in real time with automatic summaries and action items.
+          <br />
+          <span className="text-xs opacity-75">Voice commands: "Start", "Stop", "Summarize", "Read", "Reset"</span>
         </p>
       </div>
 

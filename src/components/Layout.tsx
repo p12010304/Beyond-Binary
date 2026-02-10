@@ -21,6 +21,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useAccessibility } from '@/components/AccessibilityProvider'
 import { useAppStore } from '@/store/appStore'
+import { useVoiceNavigation } from '@/hooks/useVoiceNavigation'
 import { cn } from '@/lib/utils'
 
 const SIDEBAR_MIN = 200
@@ -48,6 +49,7 @@ export default function Layout() {
     sidebarCollapsed,
     setSidebarCollapsed,
   } = useAppStore()
+  const voiceNav = useVoiceNavigation()
 
   const sidebarRef = useRef<HTMLElement>(null)
   const isResizing = useRef(false)
@@ -157,6 +159,53 @@ export default function Layout() {
     document.addEventListener('keydown', trap)
     return () => document.removeEventListener('keydown', trap)
   }, [mobileOpen])
+
+  // Voice navigation: Ctrl+Shift+V for pages, Ctrl+Shift+F for functions
+  // Hold to activate, release to stop
+  useEffect(() => {
+    const heldKeys = new Set<string>()
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toUpperCase()
+      heldKeys.add(key)
+
+      // Check for Ctrl+Shift+V (page navigation)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'V') {
+        e.preventDefault()
+        if (!voiceNav.isListening) {
+          voiceNav.activate('page')
+          // speak('Listening') // Optional: Keep silent for faster PTT or use a beep
+        }
+      }
+      // Check for Ctrl+Shift+F (function navigation)
+      else if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'F') {
+        e.preventDefault()
+        if (!voiceNav.isListening) {
+          voiceNav.activate('function')
+          // speak('Listening')
+        }
+      }
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const key = e.key.toUpperCase()
+      heldKeys.delete(key)
+
+      // Stop voice navigation when V or F is released
+      if ((key === 'V' || key === 'F') && voiceNav.isListening) {
+        voiceNav.deactivate()
+        // speak('Voice navigation stopped.')
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('keyup', handleKeyUp)
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [voiceNav, speak])
 
   const collapsed = sidebarCollapsed
   const desktopWidth = collapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarWidth
@@ -355,6 +404,43 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Voice Navigation Indicator */}
+      {voiceNav.isListening && (
+        <div
+          role="status"
+          aria-live="assertive"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-4 rounded-[--radius-lg] bg-primary text-primary-foreground shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300"
+        >
+          <div className="relative flex items-center justify-center">
+            <Mic className="h-5 w-5 relative z-10" aria-hidden="true" />
+            <span className="absolute inset-0 rounded-full bg-primary-foreground/20 animate-ping" />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-semibold">
+              {voiceNav.mode === 'page' ? 'Page Navigation' : 'Function Navigation'}
+            </span>
+            <span className="text-xs opacity-90">
+              {voiceNav.transcript || 
+                (voiceNav.mode === 'page' 
+                  ? 'Say "Meeting", "Schedule", "Documents"...' 
+                  : 'Say the function name...')}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-2 h-8 w-8 text-primary-foreground hover:bg-primary-foreground/10"
+            onClick={() => {
+              voiceNav.deactivate()
+              speak('Voice navigation cancelled.')
+            }}
+            aria-label="Cancel voice navigation"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

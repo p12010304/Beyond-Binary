@@ -4,7 +4,8 @@ An adaptive AI companion for people with disabilities in administrative and offi
 
 ## Features
 
-- **Meeting Assist** -- Real-time speech-to-text transcription, AI-powered meeting summaries, and action item extraction with multimodal outputs (voice, visual, haptic).
+- **Voice Navigation** -- Press and hold Ctrl+Shift+V (Cmd+Shift+V on Mac) for page navigation or Ctrl+Shift+F for function navigation. Use Push-to-Talk mode to quickly navigate or execute functions by voice—hold the key, say the command, release. Perfect for hands-free operation and screen reader users.
+- **Meeting Assist** -- Real-time speech-to-text transcription, AI-powered meeting summaries, and action item extraction with multimodal outputs (voice, visual, haptic). Voice commands: "Start", "Stop", "Summarize", "Read", "Reset".
 - **Smart Schedule** -- Voice-controlled Google Calendar management with adaptive forms and simplified mode for cognitive accessibility.
 - **Documents & Email** -- AI email summarization, document OCR scanning via Tesseract.js, and text-to-speech readout.
 - **Prompt Hub** -- Accessible AI prompting with guided templates, voice input, and conversation history.
@@ -124,6 +125,8 @@ src/
 
 ## Accessibility Features
 
+- **Voice navigation** with Push-to-Talk mode (Ctrl+Shift+V for pages, Ctrl+Shift+F for functions)
+- **Page-specific voice commands** for hands-free operation
 - **Skip-to-content link** for keyboard navigation
 - **ARIA landmarks** (navigation, main, role attributes)
 - **ARIA live regions** for dynamic content updates

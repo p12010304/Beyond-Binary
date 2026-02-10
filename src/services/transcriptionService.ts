@@ -60,18 +60,20 @@ export function isSpeechRecognitionSupported(): boolean {
 function createWebSpeechSession(
   callbacks: TranscriptionCallbacks,
   lang: string,
-): { start: () => void; stop: () => void } {
+  continuous: boolean = true,
+): { start: () => void; stop: () => void; abort: () => void } {
   const SpeechRecognition = getSpeechRecognitionConstructor()
 
   if (!SpeechRecognition) {
     return {
       start: () => callbacks.onError('Speech recognition is not supported in this browser. Try Chrome or Edge.'),
       stop: () => {},
+      abort: () => {},
     }
   }
 
   const recognition = new SpeechRecognition()
-  recognition.continuous = true
+  recognition.continuous = continuous
   recognition.interimResults = true
   recognition.lang = lang
 
@@ -112,6 +114,13 @@ function createWebSpeechSession(
         // Already stopped
       }
     },
+    abort: () => {
+      try {
+        recognition.abort()
+      } catch {
+        // Already stopped
+      }
+    },
   }
 }
 
@@ -119,9 +128,11 @@ function createWebSpeechSession(
 export function createTranscriptionSession(
   callbacks: TranscriptionCallbacks,
   lang = 'en-US',
-): { start: () => void; stop: () => void } {
+  continuous = true,
+): { start: () => void; stop: () => void; abort?: () => void } {
   if (isGroqAvailable()) {
+    // Groq doesn't support abort yet, just return struct without it or map to stop
     return startGroqTranscription(callbacks)
   }
-  return createWebSpeechSession(callbacks, lang)
+  return createWebSpeechSession(callbacks, lang, continuous)
 }
