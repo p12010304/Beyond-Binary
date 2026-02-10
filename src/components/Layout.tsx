@@ -8,8 +8,11 @@ import {
   Settings,
   Menu,
   X,
+  Volume2,
+  VolumeX,
   Sun,
   Moon,
+  Monitor,
   GripVertical,
   PanelLeftClose,
   PanelLeft,
@@ -34,11 +37,11 @@ const navItems = [
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
-const themeIcons = { light: Sun, dark: Moon } as const
+const themeIcons = { light: Sun, dark: Moon, system: Monitor } as const
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const { preferences, setTheme } = useAccessibility()
+  const { isSpeaking, stopSpeaking, speak, preferences, setTheme } = useAccessibility()
   const {
     sidebarWidth,
     setSidebarWidth,
@@ -51,15 +54,12 @@ export default function Layout() {
 
   // Cycle theme: light -> dark -> system
   const cycleTheme = () => {
-  const order: Array<'light' | 'dark'> = ['light', 'dark']
-  const current = preferences.theme === 'system' ? 'light' : preferences.theme
-  const idx = order.indexOf(current)
-  setTheme(order[(idx + 1) % order.length])
-}
+    const order: Array<'light' | 'dark' | 'system'> = ['light', 'dark', 'system']
+    const idx = order.indexOf(preferences.theme)
+    setTheme(order[(idx + 1) % order.length])
+  }
 
-  const themeKey: 'light' | 'dark' = preferences.theme === 'dark' ? 'dark' : 'light'
-  const ThemeIcon = themeIcons[themeKey]
-
+  const ThemeIcon = themeIcons[preferences.theme] ?? Sun
 
   // --- Resize logic ---
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
@@ -285,13 +285,40 @@ export default function Layout() {
             )}
             size={collapsed ? 'icon' : 'default'}
             onClick={cycleTheme}
-            aria-label={`Theme: ${themeKey}. Click to change.`}
-            title={`Theme: ${themeKey}`}
-
+            aria-label={`Theme: ${preferences.theme}. Click to change.`}
+            title={`Theme: ${preferences.theme}`}
           >
             <ThemeIcon className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
             {!collapsed && (
-              <span className="text-sm truncate capitalize">{themeKey} mode</span>
+              <span className="text-sm truncate capitalize">{preferences.theme} mode</span>
+            )}
+          </Button>
+
+          {/* TTS toggle */}
+          <Button
+            variant="ghost"
+            className={cn(
+              'w-full text-sidebar-foreground/60 hover:bg-sidebar-foreground/8 hover:text-sidebar-foreground',
+              collapsed ? 'justify-center' : 'justify-start gap-3',
+            )}
+            size={collapsed ? 'icon' : 'default'}
+            onClick={() => {
+              if (isSpeaking) {
+                stopSpeaking()
+              } else {
+                speak('Text to speech is enabled.')
+              }
+            }}
+            aria-label={isSpeaking ? 'Stop text to speech' : 'Test text to speech'}
+            title={isSpeaking ? 'Stop speaking' : 'Text to speech'}
+          >
+            {isSpeaking ? (
+              <VolumeX className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
+            ) : (
+              <Volume2 className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
+            )}
+            {!collapsed && (
+              <span className="text-sm truncate">{isSpeaking ? 'Stop Speaking' : 'Text to Speech'}</span>
             )}
           </Button>
         </div>
