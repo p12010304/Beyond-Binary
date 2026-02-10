@@ -1,21 +1,38 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import type { UserPreferences, DisabilityProfile, ThemeMode } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
+import {
+  isElevenLabsAvailable,
+  speakWithElevenLabs,
+  stopElevenLabs,
+  pauseElevenLabs,
+  resumeElevenLabs,
+  seekElevenLabs,
+} from '@/services/elevenLabsTtsService'
+
+type TtsProvider = 'elevenlabs' | 'browser'
+
+export type SpeechStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'ended'
 
 interface AccessibilityContextType {
   preferences: UserPreferences
   setPreferences: (prefs: UserPreferences) => void
-
-
-  disabilityProfile: DisabilityProfile[]
-  setDisabilityProfile: (profiles: DisabilityProfile[]) => void
-
+  disabilityProfile: DisabilityProfile | null
+  setDisabilityProfile: (profile: DisabilityProfile | null) => void
   speak: (text: string) => void
   stopSpeaking: () => void
+  pauseSpeaking: () => void
+  resumeSpeaking: () => void
+  seekSpeech: (time: number) => void
   isSpeaking: boolean
+  speechStatus: SpeechStatus
+  speechCurrentTime: number
+  speechDuration: number
+  spokenText: string
   vibrate: (pattern?: number | number[]) => void
   resolvedTheme: 'light' | 'dark'
   setTheme: (mode: ThemeMode) => void
+  ttsProvider: TtsProvider
 }
 
 const AccessibilityContext = createContext<AccessibilityContextType | null>(null)
@@ -26,30 +43,15 @@ const PROFILE_KEY = 'accessadmin_disability_profile'
 function loadFromStorage<T>(key: string, fallback: T): T {
   try {
     const stored = localStorage.getItem(key)
-    return stored ? (JSON.parse(stored) as T) : fallback
+    if (!stored) return fallback
+    const parsed = JSON.parse(stored) as T
+    // Merge with fallback so newly-added keys always exist
+    if (typeof parsed === 'object' && parsed !== null && typeof fallback === 'object' && fallback !== null) {
+      return { ...fallback, ...parsed }
+    }
+    return parsed
   } catch {
     return fallback
-  }
-}
-
-
-function loadDisabilityProfilesFromStorage(key: string): DisabilityProfile[] {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return []
-
-   
-    try {
-      const parsed = JSON.parse(raw) as unknown
-      if (Array.isArray(parsed)) return parsed as DisabilityProfile[]
-      if (typeof parsed === 'string') return [parsed as DisabilityProfile]
-      return []
-    } catch {
-      
-      return [raw as DisabilityProfile]
-    }
-  } catch {
-    return []
   }
 }
 
@@ -62,17 +64,25 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferencesState] = useState<UserPreferences>(() =>
     loadFromStorage(PREFERENCES_KEY, defaultPreferences),
   )
-
-  // ✅ 改：多選 array
-  const [disabilityProfile, setDisabilityProfileState] = useState<DisabilityProfile[]>(() =>
-    loadDisabilityProfilesFromStorage(PROFILE_KEY),
+  const [disabilityProfile, setDisabilityProfileState] = useState<DisabilityProfile | null>(() =>
+    loadFromStorage(PROFILE_KEY, null),
   )
-
-  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [speechStatus, setSpeechStatus] = useState<SpeechStatus>('idle')
+  const [speechCurrentTime, setSpeechCurrentTime] = useState(0)
+  const [speechDuration, setSpeechDuration] = useState(0)
+  const [spokenText, setSpokenText] = useState('')
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemTheme)
+
+  // Use ref to avoid stale closures in callbacks
+  const speechStatusRef = useRef<SpeechStatus>('idle')
+  speechStatusRef.current = speechStatus
+
+  const isSpeaking = speechStatus === 'playing'
 
   const resolvedTheme: 'light' | 'dark' =
     preferences.theme === 'system' ? systemTheme : preferences.theme
+
+  const ttsProvider: TtsProvider = isElevenLabsAvailable() ? 'elevenlabs' : 'browser'
 
   // Listen for system theme changes
   useEffect(() => {
@@ -88,10 +98,9 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(prefs))
   }, [])
 
-
-  const setDisabilityProfile = useCallback((profiles: DisabilityProfile[]) => {
-    setDisabilityProfileState(profiles)
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles))
+  const setDisabilityProfile = useCallback((profile: DisabilityProfile | null) => {
+    setDisabilityProfileState(profile)
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
   }, [])
 
   const setTheme = useCallback((mode: ThemeMode) => {
@@ -119,25 +128,107 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     }
   }, [preferences, resolvedTheme])
 
-  // TTS functions
-  const speak = useCallback((text: string) => {
+  // Reset speech state helper
+  const resetSpeechState = useCallback(() => {
+    setSpeechStatus('idle')
+    setSpeechCurrentTime(0)
+    setSpeechDuration(0)
+    setSpokenText('')
+  }, [])
+
+  // Stop all speech engines
+  const stopSpeaking = useCallback(() => {
+    stopElevenLabs()
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+    resetSpeechState()
+  }, [resetSpeechState])
+
+  // Pause speech
+  const pauseSpeaking = useCallback(() => {
+    if (isElevenLabsAvailable()) {
+      pauseElevenLabs()
+      setSpeechStatus('paused')
+    } else if ('speechSynthesis' in window) {
+      window.speechSynthesis.pause()
+      setSpeechStatus('paused')
+    }
+  }, [])
+
+  // Resume speech
+  const resumeSpeaking = useCallback(() => {
+    if (isElevenLabsAvailable()) {
+      resumeElevenLabs()
+      setSpeechStatus('playing')
+    } else if ('speechSynthesis' in window) {
+      window.speechSynthesis.resume()
+      setSpeechStatus('playing')
+    }
+  }, [])
+
+  // Seek to a specific time (seconds)
+  const seekSpeech = useCallback((time: number) => {
+    if (isElevenLabsAvailable()) {
+      seekElevenLabs(time)
+      setSpeechCurrentTime(time)
+    }
+    // Browser TTS doesn't support seeking
+  }, [])
+
+  // Browser TTS fallback
+  const speakBrowser = useCallback((text: string) => {
     if (!('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.rate = 0.9
     utterance.pitch = 1
-    utterance.onstart = () => setIsSpeaking(true)
-    utterance.onend = () => setIsSpeaking(false)
-    utterance.onerror = () => setIsSpeaking(false)
-    window.speechSynthesis.speak(utterance)
-  }, [])
-
-  const stopSpeaking = useCallback(() => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
-      setIsSpeaking(false)
+    utterance.onstart = () => setSpeechStatus('playing')
+    utterance.onend = () => {
+      setSpeechStatus('ended')
+      // Auto-reset after a moment
+      setTimeout(() => {
+        if (speechStatusRef.current === 'ended') {
+          resetSpeechState()
+        }
+      }, 500)
     }
-  }, [])
+    utterance.onerror = () => resetSpeechState()
+    window.speechSynthesis.speak(utterance)
+  }, [resetSpeechState])
+
+  // TTS: always stop first, then speak via ElevenLabs or browser
+  const speak = useCallback((text: string) => {
+    if (!text) return
+
+    // Always cancel everything before starting new speech
+    stopSpeaking()
+
+    // Track spoken text
+    setSpokenText(text)
+
+    if (isElevenLabsAvailable()) {
+      const voiceId = preferences.tts_voice || defaultPreferences.tts_voice
+      setSpeechStatus('loading')
+
+      speakWithElevenLabs(text, voiceId, {
+        onLoading: () => setSpeechStatus('loading'),
+        onStart: () => setSpeechStatus('playing'),
+        onEnd: () => setSpeechStatus('ended'),
+        onError: (errorMsg) => {
+          console.warn('ElevenLabs TTS error:', errorMsg)
+          resetSpeechState()
+        },
+        onTimeUpdate: (currentTime, duration) => {
+          setSpeechCurrentTime(currentTime)
+          setSpeechDuration(duration)
+        },
+      })
+      return
+    }
+
+    speakBrowser(text)
+  }, [preferences.tts_voice, stopSpeaking, speakBrowser, resetSpeechState])
 
   // Haptic feedback
   const vibrate = useCallback((pattern: number | number[] = 200) => {
@@ -155,10 +246,18 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         setDisabilityProfile,
         speak,
         stopSpeaking,
+        pauseSpeaking,
+        resumeSpeaking,
+        seekSpeech,
         isSpeaking,
+        speechStatus,
+        speechCurrentTime,
+        speechDuration,
+        spokenText,
         vibrate,
         resolvedTheme,
         setTheme,
+        ttsProvider,
       }}
     >
       {children}
