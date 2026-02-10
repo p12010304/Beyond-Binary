@@ -4,8 +4,11 @@ export type DisabilityProfile = 'visual' | 'hearing' | 'cognitive' | 'dyslexia' 
 
 export type OutputMode = 'voice' | 'visual' | 'haptic' | 'simplified'
 
+export type ThemeMode = 'light' | 'dark' | 'system'
+
 export interface UserPreferences {
   output_mode: OutputMode[]
+  theme: ThemeMode
   font_size: 'normal' | 'large' | 'extra-large'
   high_contrast: boolean
   reduced_motion: boolean
@@ -16,6 +19,7 @@ export interface UserPreferences {
 
 export const defaultPreferences: UserPreferences = {
   output_mode: ['visual'],
+  theme: 'system',
   font_size: 'normal',
   high_contrast: false,
   reduced_motion: false,

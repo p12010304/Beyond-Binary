@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type } from 'lucide-react'
+import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { useAccessibility } from '@/components/AccessibilityProvider'
-import type { DisabilityProfile, OutputMode, UserPreferences } from '@/lib/types'
+import type { DisabilityProfile, OutputMode, UserPreferences, ThemeMode } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -19,10 +19,16 @@ const disabilityOptions: { value: DisabilityProfile; label: string; icon: React.
 ]
 
 const outputModes: { value: OutputMode; label: string; description: string }[] = [
-  { value: 'voice', label: 'Voice Output', description: 'Read content aloud using text-to-speech' },
+  { value: 'voice', label: 'Voice Output', description: 'Read content aloud via text-to-speech' },
   { value: 'visual', label: 'Visual Output', description: 'Display text with captions and icons' },
   { value: 'haptic', label: 'Haptic Feedback', description: 'Vibration alerts for notifications' },
-  { value: 'simplified', label: 'Simplified', description: 'Reduce complexity, use plain language' },
+  { value: 'simplified', label: 'Simplified', description: 'Reduced complexity, plain language' },
+]
+
+const themeOptions: { value: ThemeMode; label: string; icon: React.ElementType }[] = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
 ]
 
 export default function Settings() {
@@ -51,7 +57,7 @@ export default function Settings() {
     setPreferences(localPrefs)
     setDisabilityProfile(localProfile)
     setSaved(true)
-    speak('Settings saved successfully.')
+    speak('Settings saved.')
     setTimeout(() => setSaved(false), 3000)
   }
 
@@ -62,31 +68,31 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground mt-1">
-          Customize your accessibility preferences and disability profile.
+        <h2 className="text-xl font-semibold tracking-tight">Settings</h2>
+        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+          Configure your accessibility preferences and connected accounts.
         </p>
       </div>
 
       {/* Disability Profile */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Disability Profile</CardTitle>
+          <CardTitle>Disability Profile</CardTitle>
           <CardDescription>
-            Select your disability type to automatically configure accessibility features.
+            Select your profile to auto-configure accessibility features.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3" role="radiogroup" aria-label="Disability profile selection">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" role="radiogroup" aria-label="Disability profile selection">
             {disabilityOptions.map((option) => (
               <button
                 key={option.value}
                 onClick={() => setLocalProfile(option.value)}
                 className={cn(
-                  'flex flex-col items-start gap-2 rounded-lg border-2 p-4 text-left transition-colors',
-                  'hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'flex flex-col items-start gap-2 rounded-[--radius-lg] border-2 p-4 text-left',
+                  'transition-all duration-[--duration-fast] ease-[--ease-out]',
+                  'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   localProfile === option.value
                     ? 'border-primary bg-primary/5'
                     : 'border-border',
@@ -96,39 +102,59 @@ export default function Settings() {
                 aria-label={`${option.label}: ${option.description}`}
               >
                 <option.icon
-                  className={cn('h-5 w-5', localProfile === option.value ? 'text-primary' : 'text-muted-foreground')}
+                  className={cn('h-[1.125rem] w-[1.125rem]', localProfile === option.value ? 'text-primary' : 'text-muted-foreground')}
                   aria-hidden="true"
                 />
                 <div>
-                  <p className="text-sm font-medium">{option.label}</p>
-                  <p className="text-xs text-muted-foreground">{option.description}</p>
+                  <p className="text-sm font-medium leading-tight">{option.label}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{option.description}</p>
                 </div>
               </button>
             ))}
           </div>
           {localProfile && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-3"
-              onClick={() => setLocalProfile(null)}
-            >
+            <Button variant="ghost" size="sm" className="mt-3" onClick={() => setLocalProfile(null)}>
               Clear selection
             </Button>
           )}
         </CardContent>
       </Card>
 
+      {/* Theme */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Theme</CardTitle>
+          <CardDescription>Choose your preferred color scheme.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2" role="radiogroup" aria-label="Theme selection">
+            {themeOptions.map((opt) => (
+              <Button
+                key={opt.value}
+                variant={localPrefs.theme === opt.value ? 'default' : 'outline'}
+                onClick={() => setLocalPrefs((p) => ({ ...p, theme: opt.value }))}
+                role="radio"
+                aria-checked={localPrefs.theme === opt.value}
+                aria-label={`${opt.label} theme`}
+              >
+                <opt.icon className="h-4 w-4" aria-hidden="true" />
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Output Modes */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Output Modes</CardTitle>
+          <CardTitle>Output Modes</CardTitle>
           <CardDescription>
-            Choose how you want to receive information. Select multiple modes.
+            Choose how you receive information. Select multiple.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3" role="group" aria-label="Output mode selection">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label="Output mode selection">
             {outputModes.map((mode) => {
               const isSelected = localPrefs.output_mode.includes(mode.value)
               return (
@@ -136,8 +162,9 @@ export default function Settings() {
                   key={mode.value}
                   onClick={() => handleOutputModeToggle(mode.value)}
                   className={cn(
-                    'flex items-start gap-3 rounded-lg border-2 p-4 text-left transition-colors',
-                    'hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'flex items-start gap-3 rounded-[--radius-lg] border-2 p-4 text-left',
+                    'transition-all duration-[--duration-fast] ease-[--ease-out]',
+                    'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     isSelected ? 'border-primary bg-primary/5' : 'border-border',
                   )}
                   aria-pressed={isSelected}
@@ -145,20 +172,20 @@ export default function Settings() {
                 >
                   <div
                     className={cn(
-                      'mt-0.5 h-4 w-4 shrink-0 rounded border-2 transition-colors',
+                      'mt-0.5 h-4 w-4 shrink-0 rounded-[3px] border-2 transition-colors duration-[--duration-fast]',
                       isSelected ? 'border-primary bg-primary' : 'border-muted-foreground',
                     )}
                     aria-hidden="true"
                   >
                     {isSelected && (
-                      <svg viewBox="0 0 16 16" fill="white" className="h-full w-full">
+                      <svg viewBox="0 0 16 16" fill="currentColor" className="h-full w-full text-primary-foreground">
                         <path d="M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z" />
                       </svg>
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{mode.label}</p>
-                    <p className="text-xs text-muted-foreground">{mode.description}</p>
+                    <p className="text-sm font-medium leading-tight">{mode.label}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{mode.description}</p>
                   </div>
                 </button>
               )
@@ -170,13 +197,12 @@ export default function Settings() {
       {/* Display Preferences */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Display Preferences</CardTitle>
+          <CardTitle>Display Preferences</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Font size */}
+        <CardContent className="space-y-5">
           <div>
-            <label className="text-sm font-medium mb-2 block">Font Size</label>
-            <div className="flex gap-2" role="radiogroup" aria-label="Font size">
+            <label className="text-sm font-medium mb-2 block" id="font-size-label">Font Size</label>
+            <div className="flex gap-2" role="radiogroup" aria-labelledby="font-size-label">
               {(['normal', 'large', 'extra-large'] as const).map((size) => (
                 <Button
                   key={size}
@@ -184,6 +210,7 @@ export default function Settings() {
                   onClick={() => setLocalPrefs((p) => ({ ...p, font_size: size }))}
                   role="radio"
                   aria-checked={localPrefs.font_size === size}
+                  aria-label={`${size.charAt(0).toUpperCase() + size.slice(1).replace('-', ' ')} font size`}
                 >
                   {size.charAt(0).toUpperCase() + size.slice(1).replace('-', ' ')}
                 </Button>
@@ -191,25 +218,25 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Toggle options */}
           {[
-            { key: 'high_contrast' as const, label: 'High Contrast', description: 'Increase color contrast for better visibility' },
+            { key: 'high_contrast' as const, label: 'High Contrast', description: 'Increase color contrast for visibility' },
             { key: 'reduced_motion' as const, label: 'Reduced Motion', description: 'Minimize animations and transitions' },
             { key: 'haptic_feedback' as const, label: 'Haptic Feedback', description: 'Enable vibration for notifications' },
-            { key: 'auto_tts' as const, label: 'Auto Text-to-Speech', description: 'Automatically read AI responses aloud' },
-            { key: 'simplified_ui' as const, label: 'Simplified Interface', description: 'Show fewer options, simpler forms' },
+            { key: 'auto_tts' as const, label: 'Auto Text-to-Speech', description: 'Read AI responses aloud automatically' },
+            { key: 'simplified_ui' as const, label: 'Simplified Interface', description: 'Fewer options, simpler forms' },
           ].map((toggle) => (
-            <div key={toggle.key} className="flex items-center justify-between">
+            <div key={toggle.key} className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium">{toggle.label}</p>
-                <p className="text-xs text-muted-foreground">{toggle.description}</p>
+                <p className="text-sm font-medium leading-tight">{toggle.label}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{toggle.description}</p>
               </div>
               <button
                 onClick={() =>
                   setLocalPrefs((p) => ({ ...p, [toggle.key]: !p[toggle.key] }))
                 }
                 className={cn(
-                  'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+                  'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent neu-inset',
+                  'transition-colors duration-[--duration-fast] ease-[--ease-out]',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   localPrefs[toggle.key] ? 'bg-primary' : 'bg-input',
                 )}
@@ -219,7 +246,8 @@ export default function Settings() {
               >
                 <span
                   className={cn(
-                    'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform',
+                    'pointer-events-none inline-block h-5 w-5 rounded-full bg-card shadow ring-0',
+                    'transition-transform duration-[--duration-fast] ease-[--ease-out]',
                     localPrefs[toggle.key] ? 'translate-x-5' : 'translate-x-0',
                   )}
                   aria-hidden="true"
@@ -230,21 +258,21 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {/* Google Account */}
+      {/* Connected Accounts */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Connected Accounts</CardTitle>
+          <CardTitle>Connected Accounts</CardTitle>
           <CardDescription>
             Link external services for calendar and email features.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div>
               <p className="text-sm font-medium">Google Account</p>
               <p className="text-xs text-muted-foreground">Calendar and Gmail integration</p>
             </div>
-            <Badge variant="outline">Configure in Schedule / Documents</Badge>
+            <Badge variant="outline">Via Schedule / Documents</Badge>
           </div>
           <div>
             <label htmlFor="gemini-key" className="text-sm font-medium mb-1 block">
@@ -253,12 +281,12 @@ export default function Settings() {
             <Input
               id="gemini-key"
               type="password"
-              placeholder="Set in .env file (VITE_GEMINI_API_KEY)"
+              placeholder="Set via VITE_GEMINI_API_KEY in .env"
               disabled
               className="max-w-md"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              API keys are configured via environment variables for security.
+              API keys are configured via environment variables.
             </p>
           </div>
         </CardContent>
@@ -266,17 +294,17 @@ export default function Settings() {
 
       {/* Save / Reset */}
       <div className="flex items-center gap-3">
-        <Button onClick={handleSave} size="lg">
+        <Button onClick={handleSave}>
           <Save className="h-4 w-4" aria-hidden="true" />
           Save Settings
         </Button>
-        <Button onClick={handleReset} variant="outline" size="lg">
+        <Button onClick={handleReset} variant="outline">
           <RotateCcw className="h-4 w-4" aria-hidden="true" />
           Reset to Defaults
         </Button>
         {saved && (
           <Badge variant="success" aria-live="polite">
-            Settings saved!
+            Saved
           </Badge>
         )}
       </div>

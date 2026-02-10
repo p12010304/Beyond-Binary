@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react'
-import { Upload, FileText, Sparkles, Volume2, Loader2, X } from 'lucide-react'
+import { Upload, FileText, ScanText, Volume2, Loader2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
 import { useAccessibility } from '@/components/AccessibilityProvider'
 import { processDocument } from '@/services/documentService'
 
@@ -57,24 +58,23 @@ export default function DocumentScanner() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <FileText className="h-5 w-5" aria-hidden="true" />
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
           Document Scanner
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* File upload */}
         <div>
           <label
             htmlFor="doc-upload"
-            className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            className="flex flex-col items-center justify-center rounded-[--radius-lg] border-2 border-dashed border-border p-8 text-center cursor-pointer hover:border-primary/40 transition-colors duration-[--duration-normal] ease-[--ease-out]"
           >
-            <Upload className="h-8 w-8 text-muted-foreground mb-2" aria-hidden="true" />
+            <Upload className="h-7 w-7 text-muted-foreground mb-2" aria-hidden="true" />
             <p className="text-sm font-medium">
-              {file ? file.name : 'Click to upload a document'}
+              {file ? file.name : 'Upload a document'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Supports images (JPG, PNG) and text files
+              Images (JPG, PNG) or text files
             </p>
             <input
               ref={fileInputRef}
@@ -83,12 +83,11 @@ export default function DocumentScanner() {
               accept="image/*,.txt"
               onChange={handleFileChange}
               className="sr-only"
-              aria-label="Upload document for OCR and summarization"
+              aria-label="Upload document for scanning and summarization"
             />
           </label>
         </div>
 
-        {/* Actions */}
         {file && (
           <div className="flex gap-2">
             <Button onClick={handleProcess} disabled={processing} className="flex-1">
@@ -99,26 +98,24 @@ export default function DocumentScanner() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  <ScanText className="h-4 w-4" aria-hidden="true" />
                   Extract & Summarize
                 </>
               )}
             </Button>
-            <Button variant="outline" onClick={handleClear}>
+            <Button variant="outline" onClick={handleClear} aria-label="Clear uploaded file">
               <X className="h-4 w-4" aria-hidden="true" />
               Clear
             </Button>
           </div>
         )}
 
-        {/* Error */}
         {error && (
-          <div role="alert" className="rounded-md bg-destructive/10 border border-destructive p-3 text-sm text-destructive">
+          <div role="alert" className="rounded-[--radius-md] bg-destructive/10 border border-destructive p-3 text-sm text-destructive">
             {error}
           </div>
         )}
 
-        {/* Extracted text */}
         {extractedText && (
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -133,19 +130,17 @@ export default function DocumentScanner() {
                 Read Aloud
               </Button>
             </div>
-            <div className="rounded-md bg-muted p-3 text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto">
+            <div className="rounded-[--radius-md] bg-muted p-3 text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto leading-relaxed">
               {extractedText}
             </div>
           </div>
         )}
 
-        {/* Summary */}
         {summary && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                AI Summary
+              <h4 className="text-sm font-medium">
+                <Badge variant="secondary" className="text-xs">Summary</Badge>
               </h4>
               <Button
                 variant="ghost"
@@ -157,7 +152,7 @@ export default function DocumentScanner() {
                 Read Aloud
               </Button>
             </div>
-            <div className="rounded-md bg-primary/5 border border-primary/20 p-3 text-sm">
+            <div className="rounded-[--radius-md] bg-primary/5 border border-primary/15 p-3 text-sm leading-relaxed">
               {summary}
             </div>
           </div>

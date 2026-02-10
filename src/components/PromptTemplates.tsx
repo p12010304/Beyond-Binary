@@ -8,7 +8,8 @@ export interface PromptTemplate {
   label: string
   description: string
   prompt: string
-  color: string
+  colorFg: string
+  colorBg: string
 }
 
 export const templates: PromptTemplate[] = [
@@ -18,31 +19,35 @@ export const templates: PromptTemplate[] = [
     label: 'Draft Email',
     description: 'Write a professional email',
     prompt: 'Help me draft a professional email about: ',
-    color: 'text-blue-600 bg-blue-100',
+    colorFg: 'text-[--color-cat-1]',
+    colorBg: 'bg-[--color-cat-1-bg]',
   },
   {
     id: 'summarize-doc',
     icon: FileText,
     label: 'Summarize Document',
-    description: 'Get a concise summary of text',
+    description: 'Get a concise summary',
     prompt: 'Please summarize the following text in simple, clear language: ',
-    color: 'text-green-600 bg-green-100',
+    colorFg: 'text-[--color-cat-2]',
+    colorBg: 'bg-[--color-cat-2-bg]',
   },
   {
     id: 'schedule-meeting',
     icon: Calendar,
     label: 'Schedule Meeting',
-    description: 'Get help planning a meeting',
+    description: 'Plan and schedule a meeting',
     prompt: 'Help me plan and schedule a meeting about: ',
-    color: 'text-orange-600 bg-orange-100',
+    colorFg: 'text-[--color-cat-3]',
+    colorBg: 'bg-[--color-cat-3-bg]',
   },
   {
     id: 'reply-message',
     icon: MessageSquare,
     label: 'Reply to Message',
-    description: 'Draft a reply to a message',
+    description: 'Draft a reply',
     prompt: 'Help me write a polite and clear reply to this message: ',
-    color: 'text-purple-600 bg-purple-100',
+    colorFg: 'text-[--color-cat-4]',
+    colorBg: 'bg-[--color-cat-4-bg]',
   },
   {
     id: 'meeting-agenda',
@@ -50,7 +55,8 @@ export const templates: PromptTemplate[] = [
     label: 'Create Agenda',
     description: 'Generate a meeting agenda',
     prompt: 'Create a structured meeting agenda for a meeting about: ',
-    color: 'text-cyan-600 bg-cyan-100',
+    colorFg: 'text-[--color-cat-5]',
+    colorBg: 'bg-[--color-cat-5-bg]',
   },
   {
     id: 'social-script',
@@ -58,7 +64,8 @@ export const templates: PromptTemplate[] = [
     label: 'Social Script',
     description: 'Practice workplace conversations',
     prompt: 'Help me prepare what to say in this workplace situation: ',
-    color: 'text-pink-600 bg-pink-100',
+    colorFg: 'text-[--color-cat-6]',
+    colorBg: 'bg-[--color-cat-6-bg]',
   },
 ]
 
@@ -74,16 +81,16 @@ export default function PromptTemplates({ onSelect, className }: PromptTemplates
         <Button
           key={template.id}
           variant="outline"
-          className="h-auto flex-col items-start gap-2 p-4 text-left"
+          className="h-auto flex-col items-start gap-2 p-3 sm:p-4 text-left whitespace-normal overflow-hidden min-w-0"
           onClick={() => onSelect(template)}
           role="listitem"
         >
-          <div className={`flex h-8 w-8 items-center justify-center rounded-md ${template.color}`}>
-            <template.icon className="h-4 w-4" aria-hidden="true" />
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[--radius-sm] ${template.colorBg}`}>
+            <template.icon className={`h-4 w-4 ${template.colorFg}`} aria-hidden="true" />
           </div>
-          <div>
-            <p className="text-sm font-medium">{template.label}</p>
-            <p className="text-xs text-muted-foreground">{template.description}</p>
+          <div className="min-w-0 w-full">
+            <p className="text-sm font-medium leading-tight truncate">{template.label}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{template.description}</p>
           </div>
         </Button>
       ))}

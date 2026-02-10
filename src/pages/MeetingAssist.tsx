@@ -76,33 +76,27 @@ export default function MeetingAssist() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Meeting Assist</h2>
-        <p className="text-muted-foreground mt-1">
-          Real-time transcription with AI-powered summaries and action items.
+        <h2 className="text-xl font-semibold tracking-tight">Meeting Assist</h2>
+        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+          Transcribe speech in real time with automatic summaries and action items.
         </p>
       </div>
 
-      {/* Browser support warning */}
       {!isSupported && (
-        <div role="alert" className="flex items-center gap-2 rounded-lg bg-warning/10 border border-warning p-4 text-sm">
-          <AlertCircle className="h-5 w-5 text-warning shrink-0" aria-hidden="true" />
-          <p>
-            Speech recognition is not supported in this browser. Please use Chrome or Edge for live transcription.
-          </p>
+        <div role="alert" className="flex items-center gap-2 rounded-[--radius-lg] bg-warning/10 border border-warning p-4 text-sm">
+          <AlertCircle className="h-4 w-4 text-warning shrink-0" aria-hidden="true" />
+          <p>Speech recognition is not supported in this browser. Use Chrome or Edge for live transcription.</p>
         </div>
       )}
 
-      {/* Error display */}
       {(error || aiError) && (
-        <div role="alert" className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive p-4 text-sm text-destructive">
-          <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+        <div role="alert" className="flex items-center gap-2 rounded-[--radius-lg] bg-destructive/10 border border-destructive p-4 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
           <p>{error || aiError}</p>
         </div>
       )}
 
-      {/* Controls */}
       <MeetingControls
         isListening={isListening}
         isProcessing={isProcessing}
@@ -114,16 +108,15 @@ export default function MeetingAssist() {
         onReadAloud={handleReadAloud}
       />
 
-      {/* Status badge */}
       <div className="flex items-center gap-2">
         <Badge variant={isListening ? 'destructive' : 'secondary'}>
           {isListening ? (
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-white animate-pulse" aria-hidden="true" />
+              <span className="h-1.5 w-1.5 rounded-full bg-destructive-foreground animate-recording" aria-hidden="true" />
               Recording
             </span>
           ) : (
-            'Not Recording'
+            'Idle'
           )}
         </Badge>
         {transcript && (
@@ -133,12 +126,11 @@ export default function MeetingAssist() {
         )}
       </div>
 
-      {/* Live Transcript */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Live Transcript</CardTitle>
+          <CardTitle>Live Transcript</CardTitle>
           <CardDescription>
-            Spoken words appear here in real time. Partial text shows in gray.
+            Spoken words appear here in real time.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -150,11 +142,10 @@ export default function MeetingAssist() {
         </CardContent>
       </Card>
 
-      {/* AI Summary */}
       {summary && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">AI Summary</CardTitle>
+            <CardTitle>Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm leading-relaxed">{summary.summary}</p>
@@ -175,13 +166,12 @@ export default function MeetingAssist() {
         </Card>
       )}
 
-      {/* Action Items */}
       {(actionItems.length > 0 || summary) && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Action Items</CardTitle>
+            <CardTitle>Action Items</CardTitle>
             <CardDescription>
-              Click the circle to mark items as complete.
+              Tap the circle to mark items as complete.
             </CardDescription>
           </CardHeader>
           <CardContent>

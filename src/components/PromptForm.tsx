@@ -18,7 +18,7 @@ export default function PromptForm({
   onChange,
   onSubmit,
   isLoading,
-  placeholder = 'Ask me anything... Type or use voice input.',
+  placeholder = 'Type your question, or use the microphone for voice input.',
 }: PromptFormProps) {
   const [isVoiceActive, setIsVoiceActive] = useState(false)
   const { isListening, transcript, startListening, stopListening, resetTranscript, isSupported } =
@@ -55,7 +55,7 @@ export default function PromptForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="relative">
+      <div>
         <label htmlFor="prompt-input" className="sr-only">
           Enter your prompt
         </label>
@@ -67,20 +67,19 @@ export default function PromptForm({
           placeholder={placeholder}
           rows={3}
           disabled={isLoading}
-          className="pr-24"
           aria-describedby="prompt-help"
         />
         {isVoiceActive && transcript && (
-          <p className="text-xs text-muted-foreground mt-1 italic" aria-live="polite">
+          <p className="text-xs text-muted-foreground mt-1.5" aria-live="polite">
             Hearing: {transcript}
           </p>
         )}
       </div>
 
-      <p id="prompt-help" className="text-xs text-muted-foreground">
+      <p id="prompt-help" className="text-xs text-muted-foreground leading-relaxed">
         {preferences.simplified_ui
           ? 'Type your question or use the microphone. Press Enter to send.'
-          : 'Press Enter to send, Shift+Enter for new line. Use the microphone for voice input.'}
+          : 'Enter to send, Shift+Enter for new line. Use the microphone for voice input.'}
       </p>
 
       <div className="flex gap-2">
@@ -88,7 +87,7 @@ export default function PromptForm({
           {isLoading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              Thinking...
+              Processing...
             </>
           ) : (
             <>

@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
-import type { UserPreferences, DisabilityProfile } from '@/lib/types'
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import type { UserPreferences, DisabilityProfile, ThemeMode } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
 
 interface AccessibilityContextType {
@@ -11,6 +11,8 @@ interface AccessibilityContextType {
   stopSpeaking: () => void
   isSpeaking: boolean
   vibrate: (pattern?: number | number[]) => void
+  resolvedTheme: 'light' | 'dark'
+  setTheme: (mode: ThemeMode) => void
 }
 
 const AccessibilityContext = createContext<AccessibilityContextType | null>(null)
@@ -27,6 +29,11 @@ function loadFromStorage<T>(key: string, fallback: T): T {
   }
 }
 
+function getSystemTheme(): 'light' | 'dark' {
+  if (typeof window === 'undefined') return 'light'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferencesState] = useState<UserPreferences>(() =>
     loadFromStorage(PREFERENCES_KEY, defaultPreferences),
@@ -35,21 +42,42 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     loadFromStorage(PROFILE_KEY, null),
   )
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemTheme)
+
+  const resolvedTheme: 'light' | 'dark' =
+    preferences.theme === 'system' ? systemTheme : preferences.theme
+
+  // Listen for system theme changes
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? 'dark' : 'light')
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   // Persist preferences
-  const setPreferences = (prefs: UserPreferences) => {
+  const setPreferences = useCallback((prefs: UserPreferences) => {
     setPreferencesState(prefs)
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(prefs))
-  }
+  }, [])
 
-  const setDisabilityProfile = (profile: DisabilityProfile | null) => {
+  const setDisabilityProfile = useCallback((profile: DisabilityProfile | null) => {
     setDisabilityProfileState(profile)
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
-  }
+  }, [])
+
+  const setTheme = useCallback((mode: ThemeMode) => {
+    setPreferences({ ...preferences, theme: mode })
+  }, [preferences, setPreferences])
 
   // Apply global CSS classes based on preferences
   useEffect(() => {
     const root = document.documentElement
+
+    // Theme
+    root.classList.toggle('dark', resolvedTheme === 'dark')
+
+    // Accessibility toggles
     root.classList.toggle('high-contrast', preferences.high_contrast)
     root.classList.toggle('large-text', preferences.font_size === 'large' || preferences.font_size === 'extra-large')
     root.classList.toggle('reduced-motion', preferences.reduced_motion)
@@ -61,10 +89,10 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     } else {
       root.style.fontSize = ''
     }
-  }, [preferences])
+  }, [preferences, resolvedTheme])
 
   // TTS functions
-  const speak = (text: string) => {
+  const speak = useCallback((text: string) => {
     if (!('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
@@ -74,21 +102,21 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     utterance.onend = () => setIsSpeaking(false)
     utterance.onerror = () => setIsSpeaking(false)
     window.speechSynthesis.speak(utterance)
-  }
+  }, [])
 
-  const stopSpeaking = () => {
+  const stopSpeaking = useCallback(() => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel()
       setIsSpeaking(false)
     }
-  }
+  }, [])
 
   // Haptic feedback
-  const vibrate = (pattern: number | number[] = 200) => {
+  const vibrate = useCallback((pattern: number | number[] = 200) => {
     if (preferences.haptic_feedback && 'vibrate' in navigator) {
       navigator.vibrate(pattern)
     }
-  }
+  }, [preferences.haptic_feedback])
 
   return (
     <AccessibilityContext.Provider
@@ -101,6 +129,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         stopSpeaking,
         isSpeaking,
         vibrate,
+        resolvedTheme,
+        setTheme,
       }}
     >
       {children}

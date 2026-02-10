@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Sparkles, Volume2, Trash2, Clock } from 'lucide-react'
+import { MessageCircle, Volume2, Trash2, Clock, AlertCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -32,7 +32,6 @@ export default function PromptHub() {
       const result = await answerPrompt(prompt)
       setResponse(result)
 
-      // Add to history
       setHistory((prev) => [
         {
           id: crypto.randomUUID(),
@@ -55,11 +54,9 @@ export default function PromptHub() {
 
   const handleTemplateSelect = (template: PromptTemplate) => {
     setPromptValue(template.prompt)
-    // Focus the textarea
     const textarea = document.getElementById('prompt-input')
     if (textarea) {
       textarea.focus()
-      // Place cursor at end
       if (textarea instanceof HTMLTextAreaElement) {
         textarea.selectionStart = textarea.selectionEnd = template.prompt.length
       }
@@ -72,21 +69,19 @@ export default function PromptHub() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Prompt Hub</h2>
-        <p className="text-muted-foreground mt-1">
-          Ask AI anything using text, voice, or guided templates. Designed for accessibility.
+        <h2 className="text-xl font-semibold tracking-tight">Prompt Hub</h2>
+        <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+          Interact with AI using text, voice, or guided templates.
         </p>
       </div>
 
-      {/* Templates */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Quick Templates</CardTitle>
+          <CardTitle>Quick Templates</CardTitle>
           <CardDescription>
             {preferences.simplified_ui
-              ? 'Click a button to start with a ready-made prompt.'
+              ? 'Tap a button to start with a ready-made prompt.'
               : 'Select a template to pre-fill your prompt, then customize it.'}
           </CardDescription>
         </CardHeader>
@@ -95,12 +90,11 @@ export default function PromptHub() {
         </CardContent>
       </Card>
 
-      {/* Prompt input */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
-            Ask AI
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="h-[1.125rem] w-[1.125rem] text-primary" aria-hidden="true" />
+            Ask a Question
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -113,19 +107,18 @@ export default function PromptHub() {
         </CardContent>
       </Card>
 
-      {/* Error */}
       {error && (
-        <div role="alert" className="rounded-lg bg-destructive/10 border border-destructive p-4 text-sm text-destructive">
-          {error}
+        <div role="alert" className="flex items-center gap-2 rounded-[--radius-lg] bg-destructive/10 border border-destructive p-4 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <p>{error}</p>
         </div>
       )}
 
-      {/* Current response */}
       {response && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">AI Response</CardTitle>
+              <CardTitle>Response</CardTitle>
               <Button
                 variant="ghost"
                 size="sm"
@@ -138,20 +131,19 @@ export default function PromptHub() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm max-w-none" aria-live="polite">
+            <div aria-live="polite">
               <p className="whitespace-pre-wrap text-sm leading-relaxed">{response}</p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* History */}
       {history.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Recent History</CardTitle>
-              <Button variant="ghost" size="sm" onClick={handleClearHistory}>
+              <CardTitle>Recent History</CardTitle>
+              <Button variant="ghost" size="sm" onClick={handleClearHistory} aria-label="Clear prompt history">
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
                 Clear
               </Button>
@@ -168,7 +160,7 @@ export default function PromptHub() {
                       {entry.timestamp.toLocaleTimeString()}
                     </span>
                   </div>
-                  <p className="text-sm font-medium mb-2">{entry.prompt}</p>
+                  <p className="text-sm font-medium mb-2 leading-relaxed">{entry.prompt}</p>
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="secondary" className="text-xs">AI</Badge>
                     <Button
@@ -176,12 +168,12 @@ export default function PromptHub() {
                       size="sm"
                       className="h-auto p-0"
                       onClick={() => speak(entry.response)}
-                      aria-label="Read this response aloud"
+                      aria-label={`Read response aloud: ${entry.prompt.slice(0, 30)}`}
                     >
                       <Volume2 className="h-3 w-3" aria-hidden="true" />
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3">
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap line-clamp-3 leading-relaxed">
                     {entry.response}
                   </p>
                 </div>

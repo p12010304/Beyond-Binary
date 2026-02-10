@@ -9,29 +9,33 @@ const features = [
     to: '/meeting',
     icon: Mic,
     title: 'Meeting Assist',
-    description: 'Real-time transcription, live captions, and AI-powered meeting summaries with action items.',
-    color: 'text-blue-600 bg-blue-100',
+    description: 'Transcribe meetings in real time and extract action items automatically.',
+    colorFg: 'text-[--color-cat-1]',
+    colorBg: 'bg-[--color-cat-1-bg]',
   },
   {
     to: '/schedule',
     icon: Calendar,
     title: 'Smart Schedule',
-    description: 'Voice-controlled calendar management with adaptive prompts and Google Calendar sync.',
-    color: 'text-green-600 bg-green-100',
+    description: 'Manage your calendar with voice commands and Google Calendar sync.',
+    colorFg: 'text-[--color-cat-2]',
+    colorBg: 'bg-[--color-cat-2-bg]',
   },
   {
     to: '/documents',
     icon: FileText,
     title: 'Documents & Email',
-    description: 'AI email summaries, document scanning with OCR, and voice dictation for replies.',
-    color: 'text-orange-600 bg-orange-100',
+    description: 'Summarize emails, scan documents with OCR, and dictate replies.',
+    colorFg: 'text-[--color-cat-3]',
+    colorBg: 'bg-[--color-cat-3-bg]',
   },
   {
     to: '/prompt-hub',
     icon: MessageSquare,
     title: 'Prompt Hub',
-    description: 'Accessible AI prompting with guided templates, voice input, and multimodal outputs.',
-    color: 'text-purple-600 bg-purple-100',
+    description: 'Interact with AI using text, voice, or guided templates.',
+    colorFg: 'text-[--color-cat-4]',
+    colorBg: 'bg-[--color-cat-4-bg]',
   },
 ]
 
@@ -46,26 +50,26 @@ export default function Home() {
 
   return (
     <div className="space-y-8">
-      {/* Hero section */}
+      {/* Hero */}
       <section aria-labelledby="welcome-heading">
-        <h2 id="welcome-heading" className="text-3xl font-bold tracking-tight">
-          Welcome to AccessAdmin AI
+        <h2 id="welcome-heading" className="text-xl font-semibold tracking-tight leading-tight">
+          Your Workspace
         </h2>
-        <p className="mt-2 text-lg text-muted-foreground max-w-2xl">
-          Your adaptive AI companion for administrative work. Navigate meetings, manage schedules,
-          handle documents, and interact with AI -- all tailored to your accessibility needs.
+        <p className="mt-2 text-sm text-muted-foreground max-w-xl leading-relaxed">
+          Adaptive tools for meetings, scheduling, documents, and AI prompting,
+          configured to match your accessibility preferences.
         </p>
-        <div className="mt-4 flex gap-3">
-          <Button asChild size="lg">
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Button asChild>
             <Link to="/meeting">
-              <Mic className="h-5 w-5" aria-hidden="true" />
+              <Mic className="h-4 w-4" aria-hidden="true" />
               Start Meeting Assist
             </Link>
           </Button>
-          <Button asChild variant="outline" size="lg">
+          <Button asChild variant="outline">
             <Link to="/settings">
-              <Settings className="h-5 w-5" aria-hidden="true" />
-              Configure Accessibility
+              <Settings className="h-4 w-4" aria-hidden="true" />
+              Accessibility Settings
             </Link>
           </Button>
         </div>
@@ -73,7 +77,7 @@ export default function Home() {
 
       {/* Feature cards */}
       <section aria-labelledby="features-heading">
-        <h3 id="features-heading" className="text-xl font-semibold mb-4">
+        <h3 id="features-heading" className="text-base font-medium mb-4">
           Quick Access
         </h3>
         <div className="grid gap-4 sm:grid-cols-2" role="list">
@@ -81,25 +85,25 @@ export default function Home() {
             <Link
               key={feature.to}
               to={feature.to}
-              className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
+              className="group block rounded-[--radius-lg] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onFocus={() => handleCardFocus(feature.title, feature.description)}
               role="listitem"
             >
-              <Card className="h-full transition-shadow group-hover:shadow-md group-focus-visible:shadow-md">
+              <Card className="h-full group-hover:-translate-y-0.5 group-focus-visible:-translate-y-0.5">
                 <CardHeader>
                   <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${feature.color}`}>
-                      <feature.icon className="h-5 w-5" aria-hidden="true" />
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-[--radius-md] ${feature.colorBg}`}>
+                      <feature.icon className={`h-[1.125rem] w-[1.125rem] ${feature.colorFg}`} aria-hidden="true" />
                     </div>
-                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                    <CardTitle>{feature.title}</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-sm">
+                  <CardDescription>
                     {feature.description}
                   </CardDescription>
-                  <div className="mt-3 flex items-center gap-1 text-sm font-medium text-primary group-hover:gap-2 transition-all">
-                    Open <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  <div className="mt-3 flex items-center gap-1.5 text-sm font-medium text-primary group-hover:gap-2.5 transition-all duration-[--duration-normal] ease-[--ease-out]">
+                    Open <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </div>
                 </CardContent>
               </Card>
@@ -108,20 +112,24 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Status bar */}
-      <section aria-label="Quick status" className="rounded-lg bg-muted p-4">
+      {/* Status */}
+      <section aria-label="Current settings" className="rounded-[--radius-lg] bg-muted/60 p-4">
         <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
           <div>
-            <span className="font-medium text-foreground">Accessibility:</span>{' '}
-            {preferences.output_mode.join(', ')} mode
+            <span className="font-medium text-foreground">Output:</span>{' '}
+            {preferences.output_mode.join(', ')}
           </div>
           <div>
-            <span className="font-medium text-foreground">Font Size:</span>{' '}
+            <span className="font-medium text-foreground">Font:</span>{' '}
             {preferences.font_size}
           </div>
           <div>
-            <span className="font-medium text-foreground">High Contrast:</span>{' '}
-            {preferences.high_contrast ? 'On' : 'Off'}
+            <span className="font-medium text-foreground">Contrast:</span>{' '}
+            {preferences.high_contrast ? 'High' : 'Standard'}
+          </div>
+          <div>
+            <span className="font-medium text-foreground">Theme:</span>{' '}
+            <span className="capitalize">{preferences.theme}</span>
           </div>
         </div>
       </section>

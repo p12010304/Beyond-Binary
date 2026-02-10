@@ -36,7 +36,6 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
   const toggleVoiceInput = (field: 'summary' | 'description' | 'location') => {
     if (isListening) {
       stopListening()
-      // Apply transcript to field
       if (activeField === 'summary') setSummary((prev) => (prev ? `${prev} ${transcript}` : transcript))
       else if (activeField === 'description') setDescription((prev) => (prev ? `${prev} ${transcript}` : transcript))
       else if (activeField === 'location') setLocation((prev) => (prev ? `${prev} ${transcript}` : transcript))
@@ -68,7 +67,6 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
         location: location || undefined,
       })
 
-      // Reset form
       setSummary('')
       setDescription('')
       setStartDate('')
@@ -84,16 +82,15 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <CalendarPlus className="h-5 w-5" aria-hidden="true" />
-          {simplified ? 'Add Event' : 'Create New Event'}
+        <CardTitle className="flex items-center gap-2">
+          <CalendarPlus className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
+          {simplified ? 'Add Event' : 'New Event'}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Event name */}
           <div>
-            <label htmlFor="event-summary" className="block text-sm font-medium mb-1">
+            <label htmlFor="event-summary" className="block text-sm font-medium mb-1.5 leading-tight">
               {simplified ? 'What?' : 'Event Name'} <span className="text-destructive">*</span>
             </label>
             <div className="flex gap-2">
@@ -101,7 +98,7 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
                 id="event-summary"
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
-                placeholder={simplified ? 'Type what the event is about' : 'e.g., Team standup meeting'}
+                placeholder={simplified ? 'What is the event about?' : 'e.g., Team standup meeting'}
                 required
                 aria-required="true"
               />
@@ -113,19 +110,18 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
                 aria-label={isListening && activeField === 'summary' ? 'Stop voice input' : 'Use voice input for event name'}
               >
                 {isListening && activeField === 'summary' ? (
-                  <MicOff className="h-4 w-4 text-destructive" />
+                  <MicOff className="h-4 w-4 text-destructive" aria-hidden="true" />
                 ) : (
-                  <Mic className="h-4 w-4" />
+                  <Mic className="h-4 w-4" aria-hidden="true" />
                 )}
               </Button>
             </div>
           </div>
 
-          {/* Date/Time */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="start-date" className="block text-sm font-medium mb-1">
-                {simplified ? 'Start Day' : 'Start Date'} <span className="text-destructive">*</span>
+              <label htmlFor="start-date" className="block text-sm font-medium mb-1.5 leading-tight">
+                Start Date <span className="text-destructive">*</span>
               </label>
               <Input
                 id="start-date"
@@ -139,8 +135,8 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
               />
             </div>
             <div>
-              <label htmlFor="start-time" className="block text-sm font-medium mb-1">
-                {simplified ? 'Start Time' : 'Start Time'} <span className="text-destructive">*</span>
+              <label htmlFor="start-time" className="block text-sm font-medium mb-1.5 leading-tight">
+                Start Time <span className="text-destructive">*</span>
               </label>
               <Input
                 id="start-time"
@@ -151,8 +147,8 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
               />
             </div>
             <div>
-              <label htmlFor="end-date" className="block text-sm font-medium mb-1">
-                {simplified ? 'End Day' : 'End Date'}
+              <label htmlFor="end-date" className="block text-sm font-medium mb-1.5 leading-tight">
+                End Date
               </label>
               <Input
                 id="end-date"
@@ -162,8 +158,8 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
               />
             </div>
             <div>
-              <label htmlFor="end-time" className="block text-sm font-medium mb-1">
-                {simplified ? 'End Time' : 'End Time'}
+              <label htmlFor="end-time" className="block text-sm font-medium mb-1.5 leading-tight">
+                End Time
               </label>
               <Input
                 id="end-time"
@@ -174,10 +170,9 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
             </div>
           </div>
 
-          {/* Location */}
           {!simplified && (
             <div>
-              <label htmlFor="event-location" className="block text-sm font-medium mb-1">
+              <label htmlFor="event-location" className="block text-sm font-medium mb-1.5 leading-tight">
                 Location
               </label>
               <div className="flex gap-2">
@@ -195,19 +190,18 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
                   aria-label="Use voice input for location"
                 >
                   {isListening && activeField === 'location' ? (
-                    <MicOff className="h-4 w-4 text-destructive" />
+                    <MicOff className="h-4 w-4 text-destructive" aria-hidden="true" />
                   ) : (
-                    <Mic className="h-4 w-4" />
+                    <Mic className="h-4 w-4" aria-hidden="true" />
                   )}
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Description */}
           {!simplified && (
             <div>
-              <label htmlFor="event-description" className="block text-sm font-medium mb-1">
+              <label htmlFor="event-description" className="block text-sm font-medium mb-1.5 leading-tight">
                 Description
               </label>
               <Textarea

@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -10,15 +9,16 @@ const variantClasses: Record<string, string> = {
   secondary: 'bg-secondary text-secondary-foreground',
   destructive: 'bg-destructive text-destructive-foreground',
   outline: 'text-foreground border border-border',
-  success: 'bg-success text-white',
-  warning: 'bg-warning text-white',
+  success: 'bg-success text-success-foreground',
+  warning: 'bg-warning text-warning-foreground',
 }
 
 function Badge({ className, variant = 'default', ...props }: BadgeProps) {
   return (
     <div
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors',
+        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold leading-normal',
+        'transition-colors duration-[--duration-fast] ease-[--ease-out]',
         variantClasses[variant],
         className,
       )}

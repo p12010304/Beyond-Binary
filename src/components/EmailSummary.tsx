@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Mail, Sparkles, Volume2, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Mail, ScanText, Volume2, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { SkeletonCard } from '@/components/ui/Skeleton'
 import { useAccessibility } from '@/components/AccessibilityProvider'
 import { summarizeEmail } from '@/services/documentService'
 import { cn } from '@/lib/utils'
@@ -51,8 +52,8 @@ export default function EmailSummary({ emails, loading, className }: EmailSummar
   if (loading) {
     return (
       <div className={cn('space-y-3', className)}>
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
+        {[0, 1, 2].map((i) => (
+          <SkeletonCard key={i} index={i} />
         ))}
       </div>
     )
@@ -61,8 +62,8 @@ export default function EmailSummary({ emails, loading, className }: EmailSummar
   if (emails.length === 0) {
     return (
       <div className={cn('text-center py-12', className)}>
-        <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
-        <p className="text-muted-foreground">No emails found. Connect your Gmail account to get started.</p>
+        <Mail className="h-10 w-10 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
+        <p className="text-sm text-muted-foreground">No emails found. Connect your Gmail account to get started.</p>
       </div>
     )
   }
@@ -72,11 +73,10 @@ export default function EmailSummary({ emails, loading, className }: EmailSummar
       {emails.map((email) => (
         <Card key={email.id} role="listitem">
           <CardContent className="p-4 space-y-2">
-            {/* Header */}
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <h4 className="font-medium text-sm truncate">{email.subject || '(No Subject)'}</h4>
-                <p className="text-xs text-muted-foreground truncate">From: {email.from}</p>
+                <h4 className="font-medium text-sm truncate leading-tight">{email.subject || '(No Subject)'}</h4>
+                <p className="text-xs text-muted-foreground truncate mt-0.5">From: {email.from}</p>
                 <p className="text-xs text-muted-foreground">{email.date}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -96,44 +96,38 @@ export default function EmailSummary({ emails, loading, className }: EmailSummar
                   aria-label={`Summarize: ${email.subject}`}
                 >
                   {loadingSummary === email.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                   ) : (
-                    <Sparkles className="h-4 w-4" />
+                    <ScanText className="h-4 w-4" aria-hidden="true" />
                   )}
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setExpandedId(expandedId === email.id ? null : email.id)}
-                  aria-label={expandedId === email.id ? 'Collapse' : 'Expand'}
+                  aria-label={expandedId === email.id ? `Collapse: ${email.subject}` : `Expand: ${email.subject}`}
                   aria-expanded={expandedId === email.id}
                 >
                   {expandedId === email.id ? (
-                    <ChevronUp className="h-4 w-4" />
+                    <ChevronUp className="h-4 w-4" aria-hidden="true" />
                   ) : (
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4" aria-hidden="true" />
                   )}
                 </Button>
               </div>
             </div>
 
-            {/* Snippet */}
-            <p className="text-xs text-muted-foreground line-clamp-2">{email.snippet}</p>
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{email.snippet}</p>
 
-            {/* AI Summary */}
             {summaries[email.id] && (
-              <div className="rounded-md bg-primary/5 border border-primary/20 p-3">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Sparkles className="h-3 w-3 text-primary" aria-hidden="true" />
-                  <Badge variant="secondary" className="text-xs">AI Summary</Badge>
-                </div>
-                <p className="text-sm">{summaries[email.id]}</p>
+              <div className="rounded-[--radius-md] bg-primary/5 border border-primary/15 p-3">
+                <Badge variant="secondary" className="text-xs mb-1.5">Summary</Badge>
+                <p className="text-sm leading-relaxed">{summaries[email.id]}</p>
               </div>
             )}
 
-            {/* Expanded body */}
             {expandedId === email.id && (
-              <div className="rounded-md bg-muted p-3 text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto">
+              <div className="rounded-[--radius-md] bg-muted p-3 text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto leading-relaxed">
                 {email.body || email.snippet}
               </div>
             )}

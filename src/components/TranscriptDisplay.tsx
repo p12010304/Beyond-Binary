@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
-import { useAccessibility } from '@/components/AccessibilityProvider'
 
 interface TranscriptDisplayProps {
   transcript: string
@@ -16,9 +15,7 @@ export default function TranscriptDisplay({
   className,
 }: TranscriptDisplayProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const { preferences } = useAccessibility()
 
-  // Auto-scroll to bottom as new text arrives
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight
@@ -34,32 +31,31 @@ export default function TranscriptDisplay({
       aria-live="polite"
       aria-label="Live transcript"
       className={cn(
-        'rounded-lg border border-border bg-white p-4 overflow-y-auto',
+        'rounded-[--radius-md] border border-border bg-card/80 p-4 overflow-y-auto neu-inset',
         'min-h-[200px] max-h-[400px]',
-        preferences.high_contrast && 'border-2 border-foreground',
         className,
       )}
     >
       {isEmpty && !isListening && (
-        <p className="text-muted-foreground italic text-center py-8">
-          Click "Start Recording" to begin live transcription.
+        <p className="text-muted-foreground text-sm text-center py-8">
+          Press Start Recording to begin live transcription.
         </p>
       )}
       {isEmpty && isListening && (
-        <p className="text-muted-foreground italic text-center py-8">
+        <p className="text-muted-foreground text-sm text-center py-8">
           <span className="inline-flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />
-            Listening... Speak into your microphone.
+            <span className="h-2 w-2 rounded-full bg-destructive animate-recording" aria-hidden="true" />
+            Listening. Speak into your microphone.
           </span>
         </p>
       )}
       {transcript && (
-        <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+        <p className="text-foreground leading-relaxed whitespace-pre-wrap text-sm">
           {transcript}
         </p>
       )}
       {interimTranscript && (
-        <span className="text-muted-foreground italic" aria-label="Partial transcription in progress">
+        <span className="text-muted-foreground italic text-sm" aria-label="Partial transcription in progress">
           {' '}{interimTranscript}
         </span>
       )}

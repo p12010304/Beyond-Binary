@@ -12,12 +12,10 @@ export default function Schedule() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
 
-  // Check authentication status
   useEffect(() => {
     setIsAuthenticated(hasValidToken())
   }, [])
 
-  // Load events for the current week
   useEffect(() => {
     if (!isAuthenticated) return
     const now = new Date()
@@ -56,60 +54,54 @@ export default function Schedule() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Smart Schedule</h2>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-xl font-semibold tracking-tight">Smart Schedule</h2>
+          <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
             Manage your calendar with voice commands and adaptive forms.
           </p>
         </div>
         {isAuthenticated && (
-          <Button variant="outline" onClick={handleRefresh} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
             Refresh
           </Button>
         )}
       </div>
 
-      {/* Errors */}
       {(error || authError) && (
-        <div role="alert" className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive p-4 text-sm text-destructive">
-          <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+        <div role="alert" className="flex items-center gap-2 rounded-[--radius-lg] bg-destructive/10 border border-destructive p-4 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
           <p>{error || authError}</p>
         </div>
       )}
 
-      {/* Not connected */}
       {!isAuthenticated ? (
         <div className="flex flex-col items-center justify-center py-16 space-y-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-            <LogIn className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted/80">
+            <LogIn className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
           </div>
-          <h3 className="text-lg font-semibold">Connect Google Calendar</h3>
-          <p className="text-muted-foreground text-center max-w-md">
-            Link your Google account to view and manage your calendar events with voice commands and accessibility features.
+          <h3 className="text-base font-medium">Connect Google Calendar</h3>
+          <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
+            Link your Google account to view and manage calendar events with voice commands and accessibility features.
           </p>
-          <Button onClick={handleConnect} disabled={isConnecting} size="lg">
+          <Button onClick={handleConnect} disabled={isConnecting}>
             {isConnecting ? 'Connecting...' : 'Connect Google Calendar'}
           </Button>
           <p className="text-xs text-muted-foreground text-center max-w-sm">
-            Requires a Google Client ID. Set VITE_GOOGLE_CLIENT_ID in your .env file.
+            Requires VITE_GOOGLE_CLIENT_ID in your .env file.
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-          {/* Events list */}
+        <div className="grid gap-6 lg:grid-cols-[1fr_minmax(320px,400px)]">
           <div>
-            <h3 className="text-lg font-semibold mb-3">This Week</h3>
+            <h3 className="text-base font-medium mb-3">This Week</h3>
             <ScheduleView
               events={events}
               loading={loading}
               onDelete={removeEvent}
             />
           </div>
-
-          {/* Event form */}
           <EventForm onSubmit={addEvent} />
         </div>
       )}

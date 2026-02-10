@@ -1,4 +1,4 @@
-import { Mic, MicOff, RotateCcw, Sparkles, Volume2, Loader2 } from 'lucide-react'
+import { Mic, MicOff, RotateCcw, ListChecks, Volume2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 
@@ -31,56 +31,49 @@ export default function MeetingControls({
       role="toolbar"
       aria-label="Meeting controls"
     >
-      {/* Record / Stop */}
       {isListening ? (
-        <Button onClick={onStop} variant="destructive" size="lg" aria-label="Stop recording">
-          <MicOff className="h-5 w-5" aria-hidden="true" />
+        <Button onClick={onStop} variant="destructive" aria-label="Stop recording">
+          <MicOff className="h-4 w-4" aria-hidden="true" />
           Stop Recording
         </Button>
       ) : (
-        <Button onClick={onStart} size="lg" aria-label="Start recording">
-          <Mic className="h-5 w-5" aria-hidden="true" />
+        <Button onClick={onStart} aria-label="Start recording">
+          <Mic className="h-4 w-4" aria-hidden="true" />
           Start Recording
         </Button>
       )}
 
-      {/* Summarize */}
       <Button
         onClick={onSummarize}
         variant="secondary"
-        size="lg"
         disabled={!hasTranscript || isProcessing}
-        aria-label="Generate AI summary from transcript"
+        aria-label="Generate summary from transcript"
       >
         {isProcessing ? (
-          <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
         ) : (
-          <Sparkles className="h-5 w-5" aria-hidden="true" />
+          <ListChecks className="h-4 w-4" aria-hidden="true" />
         )}
-        {isProcessing ? 'Summarizing...' : 'AI Summary'}
+        {isProcessing ? 'Summarizing...' : 'Summarize'}
       </Button>
 
-      {/* Read Aloud */}
       <Button
         onClick={onReadAloud}
         variant="outline"
-        size="lg"
         disabled={!hasTranscript}
         aria-label="Read transcript aloud"
       >
-        <Volume2 className="h-5 w-5" aria-hidden="true" />
+        <Volume2 className="h-4 w-4" aria-hidden="true" />
         Read Aloud
       </Button>
 
-      {/* Reset */}
       <Button
         onClick={onReset}
         variant="ghost"
-        size="lg"
         disabled={!hasTranscript && !isListening}
         aria-label="Reset transcript"
       >
-        <RotateCcw className="h-5 w-5" aria-hidden="true" />
+        <RotateCcw className="h-4 w-4" aria-hidden="true" />
         Reset
       </Button>
     </div>
