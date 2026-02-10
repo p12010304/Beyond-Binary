@@ -75,4 +75,6 @@ export interface AISummaryResult {
   summary: string
   action_items: ActionItem[]
   key_topics: string[]
+  sentiment: 'neutral' | 'positive' | 'negative' | 'tense' | 'collaborative'
+  tone_analysis: string
 }
