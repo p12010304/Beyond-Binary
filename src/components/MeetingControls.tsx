@@ -1,10 +1,13 @@
 import { Mic, MicOff, RotateCcw, ListChecks, Volume2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
+import type { SpeechStatus } from '@/components/AccessibilityProvider'
 
 interface MeetingControlsProps {
+  isInitializing: boolean
   isListening: boolean
   isProcessing: boolean
+  speechStatus: SpeechStatus
   hasTranscript: boolean
   onStart: () => void
   onStop: () => void
@@ -15,8 +18,10 @@ interface MeetingControlsProps {
 }
 
 export default function MeetingControls({
+  isInitializing,
   isListening,
   isProcessing,
+  speechStatus,
   hasTranscript,
   onStart,
   onStop,
@@ -25,13 +30,21 @@ export default function MeetingControls({
   onReadAloud,
   className,
 }: MeetingControlsProps) {
+  const isLoadingAudio = speechStatus === 'loading'
+  const isSpeechActive = speechStatus === 'playing' || speechStatus === 'paused' || speechStatus === 'loading'
+
   return (
     <div
       className={cn('flex flex-wrap gap-3', className)}
       role="toolbar"
       aria-label="Meeting controls"
     >
-      {isListening ? (
+      {isInitializing ? (
+        <Button disabled variant="default" aria-label="Preparing microphone">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          Preparing...
+        </Button>
+      ) : isListening ? (
         <Button onClick={onStop} variant="destructive" aria-label="Stop recording">
           <MicOff className="h-4 w-4" aria-hidden="true" />
           Stop Recording
@@ -60,17 +73,21 @@ export default function MeetingControls({
       <Button
         onClick={onReadAloud}
         variant="outline"
-        disabled={!hasTranscript}
-        aria-label="Read transcript aloud"
+        disabled={!hasTranscript || isSpeechActive}
+        aria-label={isLoadingAudio ? 'Loading audio' : 'Read transcript aloud'}
       >
-        <Volume2 className="h-4 w-4" aria-hidden="true" />
-        Read Aloud
+        {isLoadingAudio ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <Volume2 className="h-4 w-4" aria-hidden="true" />
+        )}
+        {isLoadingAudio ? 'Loading...' : 'Read Aloud'}
       </Button>
 
       <Button
         onClick={onReset}
         variant="ghost"
-        disabled={!hasTranscript && !isListening}
+        disabled={!hasTranscript && !isListening && !isInitializing}
         aria-label="Reset transcript"
       >
         <RotateCcw className="h-4 w-4" aria-hidden="true" />

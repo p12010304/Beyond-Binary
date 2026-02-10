@@ -5,6 +5,9 @@ import {
 } from '@/services/transcriptionService'
 
 export interface UseTranscriptionReturn {
+  /** True while the microphone is initializing (before audio capture begins) */
+  isInitializing: boolean
+  /** True once the microphone is live and actively capturing audio */
   isListening: boolean
   transcript: string
   interimTranscript: string
@@ -16,6 +19,7 @@ export interface UseTranscriptionReturn {
 }
 
 export function useTranscription(): UseTranscriptionReturn {
+  const [isInitializing, setIsInitializing] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [interimTranscript, setInterimTranscript] = useState('')
@@ -26,6 +30,8 @@ export function useTranscription(): UseTranscriptionReturn {
   const startListening = useCallback(() => {
     setError(null)
     setInterimTranscript('')
+    setIsInitializing(true)
+    setIsListening(false)
 
     const session = createTranscriptionSession({
       onTranscript: (text, isFinal) => {
@@ -36,8 +42,14 @@ export function useTranscription(): UseTranscriptionReturn {
           setInterimTranscript(text)
         }
       },
+      onReady: () => {
+        // Microphone is live — switch from initializing to listening
+        setIsInitializing(false)
+        setIsListening(true)
+      },
       onError: (err) => {
         setError(err)
+        setIsInitializing(false)
         setIsListening(false)
       },
       onEnd: () => {
@@ -46,6 +58,7 @@ export function useTranscription(): UseTranscriptionReturn {
           try {
             sessionRef.current.start()
           } catch {
+            setIsInitializing(false)
             setIsListening(false)
           }
         }
@@ -54,7 +67,6 @@ export function useTranscription(): UseTranscriptionReturn {
 
     sessionRef.current = session
     session.start()
-    setIsListening(true)
   }, [])
 
   const stopListening = useCallback(() => {
@@ -63,6 +75,7 @@ export function useTranscription(): UseTranscriptionReturn {
       sessionRef.current = null // Clear ref before stop to prevent auto-restart
       session.stop()
     }
+    setIsInitializing(false)
     setIsListening(false)
     setInterimTranscript('')
   }, [])
@@ -73,6 +86,7 @@ export function useTranscription(): UseTranscriptionReturn {
   }, [])
 
   return {
+    isInitializing,
     isListening,
     transcript,
     interimTranscript,

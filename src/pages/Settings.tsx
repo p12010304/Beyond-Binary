@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor } from 'lucide-react'
+import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor, Mic } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -8,6 +8,8 @@ import { useAccessibility } from '@/components/AccessibilityProvider'
 import type { DisabilityProfile, OutputMode, UserPreferences, ThemeMode } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { isElevenLabsAvailable, ELEVENLABS_VOICES } from '@/services/elevenLabsTtsService'
+import { getTranscriptionEngine } from '@/services/transcriptionService'
 
 const disabilityOptions: { value: DisabilityProfile; label: string; icon: React.ElementType; description: string }[] = [
   { value: 'visual', label: 'Visual', icon: Eye, description: 'Screen reader, audio output, high contrast' },
@@ -142,6 +144,91 @@ export default function Settings() {
               </Button>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Voice & Transcription */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Voice & Transcription</CardTitle>
+          <CardDescription>
+            Speech engines used for transcription and text-to-speech.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* STT engine indicator */}
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium leading-tight flex items-center gap-2">
+                <Mic className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                Speech-to-Text
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                {getTranscriptionEngine() === 'groq'
+                  ? 'Groq Whisper (high accuracy, auto-punctuated)'
+                  : getTranscriptionEngine() === 'web-speech'
+                    ? 'Browser Web Speech API (requires Chrome/Edge)'
+                    : 'Not available in this browser'}
+              </p>
+            </div>
+            <Badge variant={getTranscriptionEngine() !== 'none' ? 'success' : 'secondary'}>
+              {getTranscriptionEngine() === 'groq' ? 'Groq' : getTranscriptionEngine() === 'web-speech' ? 'Browser' : 'None'}
+            </Badge>
+          </div>
+
+          {/* TTS engine indicator */}
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium leading-tight flex items-center gap-2">
+                <Volume2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                Text-to-Speech
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                {isElevenLabsAvailable()
+                  ? 'ElevenLabs (natural voice)'
+                  : 'Browser SpeechSynthesis (default OS voice)'}
+              </p>
+            </div>
+            <Badge variant={isElevenLabsAvailable() ? 'success' : 'secondary'}>
+              {isElevenLabsAvailable() ? 'ElevenLabs' : 'Browser'}
+            </Badge>
+          </div>
+
+          {/* ElevenLabs voice picker */}
+          {isElevenLabsAvailable() && (
+            <div>
+              <label htmlFor="tts-voice-select" className="text-sm font-medium mb-1.5 block leading-tight">
+                Voice
+              </label>
+              <select
+                id="tts-voice-select"
+                value={localPrefs.tts_voice}
+                onChange={(e) => setLocalPrefs((p) => ({ ...p, tts_voice: e.target.value }))}
+                className={cn(
+                  'flex h-10 w-full max-w-xs rounded-[--radius-md] border border-input bg-card/50 px-3 py-2 text-sm neu-inset',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+                )}
+                aria-label="Select ElevenLabs voice"
+              >
+                {ELEVENLABS_VOICES.map((voice) => (
+                  <option key={voice.id} value={voice.id}>
+                    {voice.name} — {voice.description}
+                  </option>
+                ))}
+              </select>
+              <div className="mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => speak(`Hello! This is a preview of the selected voice.`)}
+                  aria-label="Preview selected voice"
+                >
+                  <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Preview Voice
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -3,6 +3,7 @@ import { AlertCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import MeetingControls from '@/components/MeetingControls'
+import SpeechPlayer from '@/components/SpeechPlayer'
 import TranscriptDisplay from '@/components/TranscriptDisplay'
 import ActionItems from '@/components/ActionItems'
 import { useTranscription } from '@/hooks/useTranscription'
@@ -12,6 +13,7 @@ import type { AISummaryResult, ActionItem } from '@/lib/types'
 
 export default function MeetingAssist() {
   const {
+    isInitializing,
     isListening,
     transcript,
     interimTranscript,
@@ -22,7 +24,7 @@ export default function MeetingAssist() {
     resetTranscript,
   } = useTranscription()
 
-  const { speak, vibrate, preferences } = useAccessibility()
+  const { speak, stopSpeaking, speechStatus, vibrate, preferences } = useAccessibility()
 
   const [summary, setSummary] = useState<AISummaryResult | null>(null)
   const [actionItems, setActionItems] = useState<ActionItem[]>([])
@@ -64,6 +66,7 @@ export default function MeetingAssist() {
     setSummary(null)
     setActionItems([])
     setAiError(null)
+    stopSpeaking()
   }
 
   const handleToggleActionItem = (index: number) => {
@@ -98,8 +101,10 @@ export default function MeetingAssist() {
       )}
 
       <MeetingControls
+        isInitializing={isInitializing}
         isListening={isListening}
         isProcessing={isProcessing}
+        speechStatus={speechStatus}
         hasTranscript={!!transcript}
         onStart={startListening}
         onStop={stopListening}
@@ -108,9 +113,17 @@ export default function MeetingAssist() {
         onReadAloud={handleReadAloud}
       />
 
+      {/* Speech playback player */}
+      <SpeechPlayer />
+
       <div className="flex items-center gap-2">
-        <Badge variant={isListening ? 'destructive' : 'secondary'}>
-          {isListening ? (
+        <Badge variant={isListening ? 'destructive' : isInitializing ? 'warning' : 'secondary'}>
+          {isInitializing ? (
+            <span className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-warning-foreground animate-spin" aria-hidden="true" />
+              Preparing
+            </span>
+          ) : isListening ? (
             <span className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-destructive-foreground animate-recording" aria-hidden="true" />
               Recording
@@ -137,6 +150,7 @@ export default function MeetingAssist() {
           <TranscriptDisplay
             transcript={transcript}
             interimTranscript={interimTranscript}
+            isInitializing={isInitializing}
             isListening={isListening}
           />
         </CardContent>

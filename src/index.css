@@ -304,6 +304,25 @@ body {
 }
 
 /* ================================================================
+   SPEECH PLAYER - Active word highlight
+   ================================================================ */
+@keyframes word-pulse {
+  0%, 100% { background-color: rgba(var(--color-primary-rgb, 13, 148, 136), 0.18); }
+  50% { background-color: rgba(var(--color-primary-rgb, 13, 148, 136), 0.32); }
+}
+
+.speech-word-active {
+  animation: word-pulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.reduced-motion .speech-word-active,
+.high-contrast .speech-word-active {
+  animation: none;
+}
+
+/* ================================================================
    SCROLLBAR STYLING
    ================================================================ */
 ::-webkit-scrollbar {

@@ -59,7 +59,7 @@ export default function Layout() {
     setTheme(order[(idx + 1) % order.length])
   }
 
-  const ThemeIcon = themeIcons[preferences.theme]
+  const ThemeIcon = themeIcons[preferences.theme] ?? Sun
 
   // --- Resize logic ---
   const handleResizeStart = useCallback((e: React.PointerEvent) => {

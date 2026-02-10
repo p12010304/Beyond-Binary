@@ -1,15 +1,20 @@
 /**
- * Transcription service using the Web Speech API.
- * Falls back gracefully when not available (e.g., Firefox).
+ * Transcription service.
+ * Auto-selects Groq Whisper (if API key is configured) or falls back
+ * to the browser's Web Speech API.
  */
+
+import { isGroqAvailable, startGroqTranscription } from './groqTranscriptionService'
 
 export interface TranscriptionCallbacks {
   onTranscript: (text: string, isFinal: boolean) => void
   onError: (error: string) => void
   onEnd: () => void
+  /** Fired when the microphone is open and the engine is actively capturing audio */
+  onReady?: () => void
 }
 
-// Extend Window for vendor-prefixed SpeechRecognition
+// ---- Web Speech API types ----
 interface SpeechRecognitionEvent {
   results: SpeechRecognitionResultList
   resultIndex: number
@@ -30,6 +35,7 @@ type SpeechRecognitionInstance = {
   onresult: ((event: SpeechRecognitionEvent) => void) | null
   onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
   onend: (() => void) | null
+  onaudiostart: (() => void) | null
 }
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance
@@ -39,13 +45,21 @@ function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null 
   return (w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null) as SpeechRecognitionConstructor | null
 }
 
-export function isSpeechRecognitionSupported(): boolean {
-  return getSpeechRecognitionConstructor() !== null
+/** Returns which transcription engine is active */
+export function getTranscriptionEngine(): 'groq' | 'web-speech' | 'none' {
+  if (isGroqAvailable()) return 'groq'
+  if (getSpeechRecognitionConstructor()) return 'web-speech'
+  return 'none'
 }
 
-export function createTranscriptionSession(
+export function isSpeechRecognitionSupported(): boolean {
+  return getTranscriptionEngine() !== 'none'
+}
+
+// ---- Web Speech API session ----
+function createWebSpeechSession(
   callbacks: TranscriptionCallbacks,
-  lang = 'en-US',
+  lang: string,
 ): { start: () => void; stop: () => void } {
   const SpeechRecognition = getSpeechRecognitionConstructor()
 
@@ -71,8 +85,12 @@ export function createTranscriptionSession(
   }
 
   recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-    if (event.error === 'no-speech') return // Ignore no-speech errors
+    if (event.error === 'no-speech') return
     callbacks.onError(`Speech recognition error: ${event.error}`)
+  }
+
+  recognition.onaudiostart = () => {
+    callbacks.onReady?.()
   }
 
   recognition.onend = () => {
@@ -95,4 +113,15 @@ export function createTranscriptionSession(
       }
     },
   }
+}
+
+// ---- Public API (auto-selects engine) ----
+export function createTranscriptionSession(
+  callbacks: TranscriptionCallbacks,
+  lang = 'en-US',
+): { start: () => void; stop: () => void } {
+  if (isGroqAvailable()) {
+    return startGroqTranscription(callbacks)
+  }
+  return createWebSpeechSession(callbacks, lang)
 }
