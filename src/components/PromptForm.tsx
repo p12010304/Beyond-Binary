@@ -21,12 +21,14 @@ export default function PromptForm({
   placeholder = 'Type your question, or use the microphone for voice input.',
 }: PromptFormProps) {
   const [isVoiceActive, setIsVoiceActive] = useState(false)
-  const { isListening, transcript, startListening, stopListening, resetTranscript, isSupported } =
+  const { isInitializing, isListening, transcript, startListening, stopListening, resetTranscript, isSupported } =
     useTranscription()
   const { speak, preferences } = useAccessibility()
 
+  const isMicBusy = isInitializing || isListening
+
   const handleVoiceToggle = () => {
-    if (isListening) {
+    if (isMicBusy) {
       stopListening()
       if (transcript) {
         onChange(value ? `${value} ${transcript}` : transcript)
@@ -69,6 +71,19 @@ export default function PromptForm({
           disabled={isLoading}
           aria-describedby="prompt-help"
         />
+        {isVoiceActive && isInitializing && (
+          <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5" aria-live="polite">
+            <Loader2 className="h-3 w-3 animate-spin text-primary" aria-hidden="true" />
+            Preparing microphone&hellip; Please wait before speaking.
+          </p>
+        )}
+        {isVoiceActive && isListening && !transcript && (
+          <p className="text-xs mt-1.5 flex items-center gap-1.5" aria-live="polite">
+            <span className="h-1.5 w-1.5 rounded-full bg-success animate-recording" aria-hidden="true" />
+            <span className="text-success font-medium">Ready</span>
+            <span className="text-muted-foreground">— speak now.</span>
+          </p>
+        )}
         {isVoiceActive && transcript && (
           <p className="text-xs text-muted-foreground mt-1.5" aria-live="polite">
             Hearing: {transcript}
@@ -100,11 +115,19 @@ export default function PromptForm({
         {isSupported && (
           <Button
             type="button"
-            variant={isVoiceActive ? 'destructive' : 'outline'}
+            variant={isVoiceActive ? (isInitializing ? 'outline' : 'destructive') : 'outline'}
             onClick={handleVoiceToggle}
-            aria-label={isVoiceActive ? 'Stop voice input' : 'Start voice input'}
+            aria-label={
+              isInitializing
+                ? 'Preparing microphone — click to cancel'
+                : isMicBusy
+                  ? 'Stop voice input'
+                  : 'Start voice input'
+            }
           >
-            {isVoiceActive ? (
+            {isInitializing ? (
+              <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
+            ) : isMicBusy ? (
               <MicOff className="h-4 w-4" aria-hidden="true" />
             ) : (
               <Mic className="h-4 w-4" aria-hidden="true" />
