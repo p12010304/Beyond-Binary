@@ -26,6 +26,13 @@ export function isOnboardingComplete(): boolean {
   return localStorage.getItem(ONBOARDING_KEY) === 'true'
 }
 
+const STEP_TITLES = [
+  'Welcome',
+  'Choose Your Profile',
+  'Review Your Settings',
+  "You're All Set",
+]
+
 const profileOptions: {
   value: DisabilityProfile
   label: string
@@ -41,6 +48,19 @@ const profileOptions: {
   { value: 'multiple', label: 'Multiple Disabilities', icon: Users, persona: 'Everyone', shortDesc: 'All accessibility features enabled' },
 ]
 
+/** Returns all focusable elements within a container */
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  const selector = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(', ')
+  return Array.from(container.querySelectorAll<HTMLElement>(selector))
+}
+
 interface OnboardingWizardProps {
   onComplete: () => void
 }
@@ -52,11 +72,52 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const [previewPrefs, setPreviewPrefs] = useState<UserPreferences>({ ...defaultPreferences })
   const dialogRef = useRef<HTMLDivElement>(null)
 
-  // Focus trap
+  // Focus the dialog on step change so screen readers announce the new content
   useEffect(() => {
     if (dialogRef.current) {
       dialogRef.current.focus()
     }
+  }, [step])
+
+  // Focus trap: keep Tab/Shift+Tab within the dialog
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!dialogRef.current) return
+
+      // Escape key: skip the wizard
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        handleSkip()
+        return
+      }
+
+      // Tab trapping
+      if (e.key === 'Tab') {
+        const focusable = getFocusableElements(dialogRef.current)
+        if (focusable.length === 0) return
+
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+
+        if (e.shiftKey) {
+          // Shift+Tab: wrap from first to last
+          if (document.activeElement === first || document.activeElement === dialogRef.current) {
+            e.preventDefault()
+            last.focus()
+          }
+        } else {
+          // Tab: wrap from last to first
+          if (document.activeElement === last) {
+            e.preventDefault()
+            first.focus()
+          }
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step])
 
   // When profile is selected, compute preview prefs
@@ -99,20 +160,28 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+    // Backdrop: prevent interaction with content behind
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+      onMouseDown={(e) => {
+        // Prevent clicking the backdrop from moving focus outside the dialog
+        if (e.target === e.currentTarget) e.preventDefault()
+      }}
+    >
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Setup wizard"
+        aria-label={`Setup wizard — Step ${step + 1} of 4: ${STEP_TITLES[step]}`}
         tabIndex={-1}
         className={cn(
-          'w-full max-w-lg glass neu-raised rounded-[--radius-lg] overflow-hidden',
+          'w-full max-w-lg max-h-[85vh] flex flex-col glass neu-raised rounded-[--radius-lg] overflow-hidden',
           'focus:outline-none',
         )}
       >
-        {/* Progress bar */}
-        <div className="flex gap-1 px-6 pt-5">
+        {/* Progress bar + accessible step indicator */}
+        <div className="flex gap-1 px-6 pt-5 shrink-0">
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
@@ -124,8 +193,13 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             />
           ))}
         </div>
+        {/* Screen-reader-only step announcement */}
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          Step {step + 1} of 4: {STEP_TITLES[step]}
+        </div>
 
-        <div className="px-6 py-5">
+        {/* Scrollable content area */}
+        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0">
           {/* Step 0: Welcome */}
           {step === 0 && (
             <div className="space-y-5">
@@ -208,6 +282,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                   setStep(3) // Skip to ready
                 }}
                 className="text-xs text-muted-foreground underline hover:text-foreground transition-colors"
+                aria-label="Skip profile selection and explore all features"
               >
                 No specific profile — explore all features
               </button>
@@ -233,9 +308,9 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 </div>
               )}
 
-              <div className="space-y-2">
+              <div className="space-y-2" role="list" aria-label="Settings preview">
                 {prefsPreview.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between text-sm">
+                  <div key={item.label} className="flex items-center justify-between text-sm" role="listitem">
                     <span className="text-muted-foreground">{item.label}</span>
                     <span className="font-medium">
                       {typeof item.value === 'boolean' ? (
@@ -253,7 +328,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               {preset && (
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-foreground">You can toggle any setting:</p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Toggle settings">
                     {[
                       { key: 'auto_tts' as const, label: 'Auto TTS' },
                       { key: 'high_contrast' as const, label: 'High Contrast' },
@@ -273,7 +348,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                             : 'bg-muted border-border text-muted-foreground',
                         )}
                         aria-pressed={previewPrefs[t.key]}
-                        aria-label={`Toggle ${t.label}`}
+                        aria-label={`Toggle ${t.label}: currently ${previewPrefs[t.key] ? 'on' : 'off'}`}
                       >
                         {t.label}
                       </button>
@@ -329,10 +404,10 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
         </div>
 
         {/* Footer navigation */}
-        <div className="flex items-center justify-between px-6 pb-5">
+        <div className="flex items-center justify-between px-6 pb-5 pt-2 shrink-0 border-t border-border/30">
           <div>
             {step > 0 && step < 3 && (
-              <Button variant="ghost" onClick={prevStep} aria-label="Previous step">
+              <Button variant="ghost" onClick={prevStep} aria-label="Go to previous step">
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 Back
               </Button>
@@ -341,7 +416,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
 
           <div className="flex items-center gap-2">
             {step < 3 && (
-              <Button variant="ghost" onClick={handleSkip} className="text-muted-foreground">
+              <Button variant="ghost" onClick={handleSkip} className="text-muted-foreground" aria-label="Skip setup wizard">
                 <X className="h-4 w-4" aria-hidden="true" />
                 Skip
               </Button>
@@ -351,13 +426,13 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               <Button
                 onClick={nextStep}
                 disabled={step === 1 && !selectedProfile}
-                aria-label={step === 2 ? 'Confirm settings' : 'Next step'}
+                aria-label={step === 2 ? 'Confirm settings and continue' : `Go to step ${step + 2}: ${STEP_TITLES[step + 1]}`}
               >
                 {step === 2 ? 'Confirm' : 'Next'}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Button>
             ) : (
-              <Button onClick={handleFinish} aria-label="Start using the app">
+              <Button onClick={handleFinish} aria-label="Finish setup and start using the app">
                 Get Started
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Button>
