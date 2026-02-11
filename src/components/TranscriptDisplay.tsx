@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getTranscriptionEngine } from '@/services/transcriptionService'
 import { useAccessibility } from '@/components/AccessibilityProvider'
 
 interface TranscriptDisplayProps {
   transcript: string
+  /** Called when the user edits the transcript text */
+  onTranscriptChange?: (value: string) => void
   interimTranscript: string
   isInitializing?: boolean
   isListening: boolean
@@ -14,22 +16,33 @@ interface TranscriptDisplayProps {
 
 export default function TranscriptDisplay({
   transcript,
+  onTranscriptChange,
   interimTranscript,
   isInitializing = false,
   isListening,
   className,
 }: TranscriptDisplayProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const engine = getTranscriptionEngine()
-  const { disabilityProfiles, wantsSimplified } = useAccessibility()
+  const { disabilityProfile, wantsSimplified } = useAccessibility()
 
-  const isCaptionMode = disabilityProfiles.includes('hearing')
+  const isCaptionMode = disabilityProfile === 'hearing'
+  const isEditable = !isListening && !isInitializing && !!transcript && !!onTranscriptChange
 
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight
     }
   }, [transcript, interimTranscript])
+
+  // Auto-resize textarea to fit content
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+    }
+  }, [transcript, isEditable])
 
   const isEmpty = !transcript && !interimTranscript
 
@@ -89,7 +102,28 @@ export default function TranscriptDisplay({
         </p>
       )}
 
-      {transcript && (
+      {transcript && isEditable ? (
+        <>
+          <div className="flex items-center gap-1.5 mb-2">
+            <Pencil className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+            <span className="text-xs text-muted-foreground">Click to edit transcript</span>
+          </div>
+          <textarea
+            ref={textareaRef}
+            value={transcript}
+            onChange={(e) => onTranscriptChange(e.target.value)}
+            className={cn(
+              'w-full resize-none bg-transparent border-none outline-none p-0',
+              'focus-visible:ring-0 focus-visible:ring-offset-0',
+              'leading-relaxed whitespace-pre-wrap',
+              isCaptionMode
+                ? 'text-background text-lg font-medium tracking-wide'
+                : 'text-foreground text-sm',
+            )}
+            aria-label="Editable transcript — make corrections here"
+          />
+        </>
+      ) : transcript ? (
         <p className={cn(
           'leading-relaxed whitespace-pre-wrap',
           isCaptionMode
@@ -98,7 +132,8 @@ export default function TranscriptDisplay({
         )}>
           {transcript}
         </p>
-      )}
+      ) : null}
+
       {interimTranscript && (
         <span
           className={cn(

@@ -18,6 +18,7 @@ export default function MeetingAssist() {
     isInitializing,
     isListening,
     transcript,
+    setTranscript,
     interimTranscript,
     error,
     isSupported,
@@ -292,6 +293,7 @@ export default function MeetingAssist() {
         <CardContent>
           <TranscriptDisplay
             transcript={transcript}
+            onTranscriptChange={setTranscript}
             interimTranscript={interimTranscript}
             isInitializing={isInitializing}
             isListening={isListening}

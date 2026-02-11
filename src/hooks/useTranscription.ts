@@ -11,6 +11,8 @@ export interface UseTranscriptionReturn {
   /** True once the microphone is live and actively capturing audio */
   isListening: boolean
   transcript: string
+  /** Manually update the transcript (e.g. after user edits) */
+  setTranscript: (value: string) => void
   interimTranscript: string
   error: string | null
   isSupported: boolean
@@ -18,6 +20,9 @@ export interface UseTranscriptionReturn {
   stopListening: () => void
   resetTranscript: () => void
 }
+
+/** Set to true to enable mock speaker diarization + tone labels in the transcript */
+const ENABLE_MOCK_DIARIZATION = false
 
 export function useTranscription(): UseTranscriptionReturn {
   const { voiceNavigationActive } = useAppStore()
@@ -39,18 +44,23 @@ export function useTranscription(): UseTranscriptionReturn {
     const session = createTranscriptionSession({
       onTranscript: (text, isFinal) => {
         if (isFinal) {
-          // MOCK: Simulate Speaker Diarization and Tone Analysis
-          // In a real app, this would come from a backend model.
-          const speakers = ['Speaker A', 'Speaker B']
-          const tones = ['Neutral', 'Calm', 'Enthusiastic', 'Serious', 'Questioning', 'Urgent']
-          
-          // Weighted random: 60% chance to keep previous speaker (simulated by simple random for now)
-          const speaker = speakers[Math.floor(Math.random() * speakers.length)]
-          const tone = tones[Math.floor(Math.random() * tones.length)]
-          
-          const formattedEntry = `\n[${speaker} • ${tone}]: ${text.trim()}`
-          
-          setTranscript((prev) => (prev ? prev + formattedEntry : formattedEntry.trim()))
+          const trimmed = text.trim()
+          if (!trimmed) return
+
+          if (ENABLE_MOCK_DIARIZATION) {
+            // MOCK: Simulate Speaker Diarization and Tone Analysis
+            // In a real app, this would come from a backend model.
+            const speakers = ['Speaker A', 'Speaker B']
+            const tones = ['Neutral', 'Calm', 'Enthusiastic', 'Serious', 'Questioning', 'Urgent']
+            const speaker = speakers[Math.floor(Math.random() * speakers.length)]
+            const tone = tones[Math.floor(Math.random() * tones.length)]
+            const formattedEntry = `\n[${speaker} • ${tone}]: ${trimmed}`
+            setTranscript((prev) => (prev ? prev + formattedEntry : formattedEntry.trim()))
+          } else {
+            // Plain transcript: join chunks with a space
+            setTranscript((prev) => (prev ? prev + ' ' + trimmed : trimmed))
+          }
+
           setInterimTranscript('')
         } else {
           setInterimTranscript(text)
@@ -132,6 +142,7 @@ export function useTranscription(): UseTranscriptionReturn {
     isInitializing,
     isListening,
     transcript,
+    setTranscript,
     interimTranscript,
     error,
     isSupported,
