@@ -29,7 +29,7 @@
 
 do $$
 declare
-  _password_hash text := '$2a$10$PwGnSxVAb6y5LMdqOZBRouTLS9GXxz3jR.oV.8k4LRemqJR0wSuRu'; -- bcrypt of Demo1234!
+  _password_hash text := crypt('Demo1234!', gen_salt('bf', 10)); -- bcrypt hash generated at runtime
   _visual_id   uuid;
   _hearing_id  uuid;
   _cognitive_id uuid;
