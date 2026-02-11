@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
-import type { UserPreferences, DisabilityProfile, ThemeMode } from '@/lib/types'
+import type { UserPreferences, DisabilityProfile, DisabilityType, ThemeMode } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
 import {
   isElevenLabsAvailable,
@@ -17,8 +17,10 @@ export type SpeechStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'ended'
 interface AccessibilityContextType {
   preferences: UserPreferences
   setPreferences: (prefs: UserPreferences) => void
-  disabilityProfile: DisabilityProfile | null
-  setDisabilityProfile: (profile: DisabilityProfile | null) => void
+  /** Selected disability types (multi-select). Use includes() for checks. */
+  disabilities: DisabilityType[]
+  setDisabilities: (profiles: DisabilityType[]) => void
+  toggleDisability: (type: DisabilityType) => void
   speak: (text: string) => void
   stopSpeaking: () => void
   pauseSpeaking: () => void
@@ -46,6 +48,23 @@ const AccessibilityContext = createContext<AccessibilityContextType | null>(null
 const PREFERENCES_KEY = 'accessadmin_preferences'
 const PROFILE_KEY = 'accessadmin_disability_profile'
 
+const DISABILITY_PROFILE_VALUES: DisabilityProfile[] = ['visual', 'hearing', 'cognitive', 'dyslexia', 'motor']
+
+function loadDisabilityProfileFromStorage(): DisabilityProfile[] {
+  try {
+    const stored = localStorage.getItem(PROFILE_KEY)
+    if (!stored) return []
+    const parsed = JSON.parse(stored)
+    // Backward compat: legacy single string or single value stored as string
+    if (typeof parsed === 'string') return parsed ? [parsed as DisabilityProfile] : []
+    if (Array.isArray(parsed)) return parsed.filter((p): p is DisabilityProfile => DISABILITY_PROFILE_VALUES.includes(p))
+    if (parsed !== null && typeof parsed === 'object') return []
+    return []
+  } catch {
+    return []
+  }
+}
+
 function loadFromStorage<T>(key: string, fallback: T): T {
   try {
     const stored = localStorage.getItem(key)
@@ -70,9 +89,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferencesState] = useState<UserPreferences>(() =>
     loadFromStorage(PREFERENCES_KEY, defaultPreferences),
   )
-  const [disabilityProfile, setDisabilityProfileState] = useState<DisabilityProfile | null>(() =>
-    loadFromStorage(PROFILE_KEY, null),
-  )
+  const [disabilityProfile, setDisabilityProfileState] = useState<DisabilityProfile[]>(loadDisabilityProfileFromStorage)
   const [speechStatus, setSpeechStatus] = useState<SpeechStatus>('idle')
   const [speechCurrentTime, setSpeechCurrentTime] = useState(0)
   const [speechDuration, setSpeechDuration] = useState(0)
@@ -109,9 +126,17 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(prefs))
   }, [])
 
-  const setDisabilityProfile = useCallback((profile: DisabilityProfile | null) => {
-    setDisabilityProfileState(profile)
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
+  const setDisabilityProfile = useCallback((profiles: DisabilityProfile[]) => {
+    setDisabilityProfileState(profiles)
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles))
+  }, [])
+
+  const toggleDisability = useCallback((type: DisabilityProfile) => {
+    setDisabilityProfileState((prev) => {
+      const next = prev.includes(type) ? prev.filter((p) => p !== type) : [...prev, type]
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
+      return next
+    })
   }, [])
 
   const setTheme = useCallback((mode: ThemeMode) => {
@@ -254,8 +279,9 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
       value={{
         preferences,
         setPreferences,
-        disabilityProfile,
-        setDisabilityProfile,
+        disabilities: disabilityProfile,
+        setDisabilities: setDisabilityProfile,
+        toggleDisability,
         speak,
         stopSpeaking,
         pauseSpeaking,

@@ -7,7 +7,6 @@ import {
   Brain,
   Type,
   Hand,
-  Users,
   CheckCircle2,
   Sparkles,
   X,
@@ -18,7 +17,7 @@ import { cn } from '@/lib/utils'
 import { useAccessibility } from '@/components/AccessibilityProvider'
 import type { DisabilityProfile, UserPreferences } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
-import { profilePresets, applyProfilePreset } from '@/lib/profilePresets'
+import { profilePresets, applyProfilePreset, getProfilePreset } from '@/lib/profilePresets'
 
 const ONBOARDING_KEY = 'accessadmin_onboarding_complete'
 
@@ -45,7 +44,6 @@ const profileOptions: {
   { value: 'cognitive', label: 'Cognitive Disability', icon: Brain, persona: 'Taylor', shortDesc: 'Simplified interface, step-by-step guidance' },
   { value: 'dyslexia', label: 'Dyslexia', icon: Type, persona: 'Taylor', shortDesc: 'Audio alternatives, larger text, voice input' },
   { value: 'motor', label: 'Motor Disability', icon: Hand, persona: 'Alex', shortDesc: 'Voice commands, keyboard shortcuts, large targets' },
-  { value: 'multiple', label: 'Multiple Disabilities', icon: Users, persona: 'Everyone', shortDesc: 'All accessibility features enabled' },
 ]
 
 /** Returns all focusable elements within a container */
@@ -66,9 +64,9 @@ interface OnboardingWizardProps {
 }
 
 export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
-  const { setPreferences, setDisabilityProfile } = useAccessibility()
+  const { setPreferences, setDisabilities } = useAccessibility()
   const [step, setStep] = useState(0)
-  const [selectedProfile, setSelectedProfile] = useState<DisabilityProfile | null>(null)
+  const [selectedProfiles, setSelectedProfiles] = useState<DisabilityProfile[]>([])
   const [previewPrefs, setPreviewPrefs] = useState<UserPreferences>({ ...defaultPreferences })
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -120,23 +118,27 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step])
 
-  // When profile is selected, compute preview prefs
+  // When profiles change, merge presets for preview prefs
   useEffect(() => {
-    if (selectedProfile) {
-      setPreviewPrefs(applyProfilePreset(defaultPreferences, selectedProfile))
-    } else {
+    if (selectedProfiles.length === 0) {
       setPreviewPrefs({ ...defaultPreferences })
+    } else {
+      let prefs = { ...defaultPreferences }
+      for (const p of selectedProfiles) {
+        prefs = applyProfilePreset(prefs, p)
+      }
+      setPreviewPrefs(prefs)
     }
-  }, [selectedProfile])
+  }, [selectedProfiles])
 
   const handleFinish = useCallback(() => {
-    if (selectedProfile) {
-      setDisabilityProfile(selectedProfile)
+    setDisabilities(selectedProfiles)
+    if (selectedProfiles.length > 0) {
       setPreferences(previewPrefs)
     }
     localStorage.setItem(ONBOARDING_KEY, 'true')
     onComplete()
-  }, [selectedProfile, previewPrefs, setDisabilityProfile, setPreferences, onComplete])
+  }, [selectedProfiles, previewPrefs, setDisabilities, setPreferences, onComplete])
 
   const handleSkip = useCallback(() => {
     localStorage.setItem(ONBOARDING_KEY, 'true')
@@ -146,7 +148,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const nextStep = () => setStep((s) => Math.min(s + 1, 3))
   const prevStep = () => setStep((s) => Math.max(s - 1, 0))
 
-  const preset = selectedProfile ? profilePresets[selectedProfile] : null
+  const preset = getProfilePreset(selectedProfiles)
 
   // Settings preview labels
   const prefsPreview = [
@@ -237,48 +239,55 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-semibold tracking-tight">Choose Your Profile</h2>
+                <h2 className="text-lg font-semibold tracking-tight">Choose Your Profiles</h2>
                 <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  Select the profile that best matches your needs. This will auto-configure the app for you.
+                  Select one or more profiles that match your needs. This will auto-configure the app for you.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Choose your accessibility profile">
-                {profileOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setSelectedProfile(opt.value)}
-                    className={cn(
-                      'flex flex-col items-start gap-2 rounded-[--radius-lg] border-2 p-3 text-left',
-                      'transition-all duration-[--duration-fast] ease-[--ease-out]',
-                      'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                      selectedProfile === opt.value
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border',
-                    )}
-                    role="radio"
-                    aria-checked={selectedProfile === opt.value}
-                    aria-label={`${opt.label}: ${opt.shortDesc}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <opt.icon
-                        className={cn(
-                          'h-4 w-4',
-                          selectedProfile === opt.value ? 'text-primary' : 'text-muted-foreground',
-                        )}
-                        aria-hidden="true"
-                      />
-                      <span className="text-sm font-medium leading-tight">{opt.label}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{opt.shortDesc}</p>
-                    <p className="text-xs text-muted-foreground/70 italic">Like {opt.persona}</p>
-                  </button>
-                ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label="Choose your accessibility profiles (select one or more)">
+                {profileOptions.map((opt) => {
+                  const isSelected = selectedProfiles.includes(opt.value)
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setSelectedProfiles((prev) =>
+                          prev.includes(opt.value)
+                            ? prev.filter((p) => p !== opt.value)
+                            : [...prev, opt.value],
+                        )
+                      }}
+                      className={cn(
+                        'flex flex-col items-start gap-2 rounded-[--radius-lg] border-2 p-3 text-left',
+                        'transition-all duration-[--duration-fast] ease-[--ease-out]',
+                        'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        isSelected ? 'border-primary bg-primary/5' : 'border-border',
+                      )}
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      aria-label={`${opt.label}: ${opt.shortDesc}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <opt.icon
+                          className={cn(
+                            'h-4 w-4',
+                            isSelected ? 'text-primary' : 'text-muted-foreground',
+                          )}
+                          aria-hidden="true"
+                        />
+                        <span className="text-sm font-medium leading-tight">{opt.label}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{opt.shortDesc}</p>
+                      <p className="text-xs text-muted-foreground/70 italic">Like {opt.persona}</p>
+                    </button>
+                  )
+                })}
               </div>
 
               <button
                 onClick={() => {
-                  setSelectedProfile(null)
+                  setSelectedProfiles([])
                   setStep(3) // Skip to ready
                 }}
                 className="text-xs text-muted-foreground underline hover:text-foreground transition-colors"
@@ -369,8 +378,8 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 <div>
                   <h2 className="text-lg font-semibold tracking-tight">You're All Set</h2>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {selectedProfile
-                      ? `Your workspace is configured for ${profilePresets[selectedProfile].label}.`
+                    {preset
+                      ? `Your workspace is configured for ${preset.label}.`
                       : 'Your workspace is ready with default settings.'}
                   </p>
                 </div>
@@ -425,7 +434,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             {step < 3 ? (
               <Button
                 onClick={nextStep}
-                disabled={step === 1 && !selectedProfile}
+                disabled={step === 1 && selectedProfiles.length === 0}
                 aria-label={step === 2 ? 'Confirm settings and continue' : `Go to step ${step + 2}: ${STEP_TITLES[step + 1]}`}
               >
                 {step === 2 ? 'Confirm' : 'Next'}
