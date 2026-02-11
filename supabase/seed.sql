@@ -21,7 +21,8 @@
 --
 -- NOTE: The handle_new_user() trigger from migration 001 auto-creates
 -- a profiles row on auth.users insert. We then UPDATE those rows with
--- the disability_profile and preset preferences.
+-- disability_profiles (array) and preset preferences.
+-- After migration 003, the column is disability_profiles (jsonb array).
 --
 -- SAFE TO RE-RUN: Skips users that already exist.
 -- ============================================================
@@ -166,11 +167,11 @@ begin
   -- 2. Update profiles with disability presets
   -- ==============================
   -- The handle_new_user() trigger already inserted a bare profiles row
-  -- for each user. Now we set disability_profile and preferences.
+  -- for each user. Now we set disability_profiles and preferences.
 
   -- Visual profile (Alex)
   update public.profiles set
-    disability_profile = 'visual',
+    disability_profiles = '["visual"]'::jsonb,
     preferences = '{
       "output_mode": ["voice", "haptic"],
       "theme": "system",
@@ -186,7 +187,7 @@ begin
 
   -- Hearing profile (Jamie)
   update public.profiles set
-    disability_profile = 'hearing',
+    disability_profiles = '["hearing"]'::jsonb,
     preferences = '{
       "output_mode": ["visual", "haptic", "simplified"],
       "theme": "system",
@@ -202,7 +203,7 @@ begin
 
   -- Cognitive profile (Taylor)
   update public.profiles set
-    disability_profile = 'cognitive',
+    disability_profiles = '["cognitive"]'::jsonb,
     preferences = '{
       "output_mode": ["visual", "simplified"],
       "theme": "system",
@@ -218,7 +219,7 @@ begin
 
   -- Dyslexia profile (Taylor)
   update public.profiles set
-    disability_profile = 'dyslexia',
+    disability_profiles = '["dyslexia"]'::jsonb,
     preferences = '{
       "output_mode": ["voice", "visual"],
       "theme": "system",
@@ -234,7 +235,7 @@ begin
 
   -- Motor profile (Alex)
   update public.profiles set
-    disability_profile = 'motor',
+    disability_profiles = '["motor"]'::jsonb,
     preferences = '{
       "output_mode": ["voice", "visual"],
       "theme": "system",
@@ -248,9 +249,9 @@ begin
     }'::jsonb
   where id = _motor_id;
 
-  -- Multiple profile (Sam)
+  -- Multiple profile (Sam) — array of all five profiles
   update public.profiles set
-    disability_profile = 'multiple',
+    disability_profiles = '["visual","hearing","cognitive","dyslexia","motor"]'::jsonb,
     preferences = '{
       "output_mode": ["voice", "visual", "haptic", "simplified"],
       "theme": "system",

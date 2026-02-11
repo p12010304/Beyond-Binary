@@ -135,31 +135,6 @@ export const profilePresets: Record<DisabilityProfile, ProfilePreset> = {
     recommendedFeatures: ['/prompt-hub', '/meeting', '/schedule', '/documents'],
     primaryModalities: ['voice', 'visual'],
   },
-
-  multiple: {
-    label: 'Multiple Disabilities',
-    persona: 'Everyone',
-    personaStory: 'Users with overlapping needs who benefit from every accessibility feature working together.',
-    description:
-      'Activates all accessibility features: high contrast, large text, auto text-to-speech, haptic feedback, simplified interface, and reduced motion. Every modality is available.',
-    preferencesOverride: {
-      simplified_ui: true,
-      auto_tts: true,
-      high_contrast: true,
-      haptic_feedback: true,
-      reduced_motion: true,
-      font_size: 'large',
-      output_mode: ['voice', 'visual', 'haptic', 'simplified'],
-    },
-    tips: [
-      'All accessibility features are enabled for maximum support.',
-      'Use voice, text, or touch — whichever works best for you.',
-      'Forms are simplified and responses are read aloud.',
-      'Adjust any setting in the Settings page if something feels off.',
-    ],
-    recommendedFeatures: ['/meeting', '/prompt-hub', '/documents', '/schedule'],
-    primaryModalities: ['text', 'voice', 'visual', 'haptic'],
-  },
 }
 
 /** Apply a profile preset on top of existing preferences */
@@ -174,7 +149,69 @@ export function applyProfilePreset(
   }
 }
 
-/** Get preset for a profile, or null if no profile */
+const FONT_SIZE_ORDER = { normal: 0, large: 1, 'extra-large': 2 } as const
+
+/** Merge preferences from multiple profiles: union output_mode, max booleans, largest font_size */
+export function mergeProfilePresets(
+  profiles: DisabilityProfile[],
+): Partial<UserPreferences> {
+  if (profiles.length === 0) return {}
+  const prefs = profiles.map((p) => profilePresets[p]?.preferencesOverride ?? {})
+  const outputMode = Array.from(
+    new Set(prefs.flatMap((p) => p.output_mode ?? [])),
+  ) as UserPreferences['output_mode']
+  const fontSize = prefs.reduce<UserPreferences['font_size']>(
+    (best, p) =>
+      (p.font_size && FONT_SIZE_ORDER[p.font_size] > FONT_SIZE_ORDER[best]
+        ? p.font_size
+        : best) as UserPreferences['font_size'],
+    'normal',
+  )
+  const ttsVoice =
+    prefs.find((p) => p.tts_voice)?.tts_voice ?? undefined
+  return {
+    output_mode: outputMode.length > 0 ? outputMode : undefined,
+    font_size: fontSize,
+    high_contrast: prefs.some((p) => p.high_contrast) || undefined,
+    reduced_motion: prefs.some((p) => p.reduced_motion) || undefined,
+    haptic_feedback: prefs.some((p) => p.haptic_feedback) || undefined,
+    auto_tts: prefs.some((p) => p.auto_tts) || undefined,
+    simplified_ui: prefs.some((p) => p.simplified_ui) || undefined,
+    tts_voice: ttsVoice,
+  }
+}
+
+/** Get a merged preset for multiple profiles (tips, recommendedFeatures, label) */
+export function getMergedPreset(
+  profiles: DisabilityProfile[],
+): ProfilePreset | null {
+  if (profiles.length === 0) return null
+  if (profiles.length === 1) return profilePresets[profiles[0]] ?? null
+  const presets = profiles
+    .map((p) => profilePresets[p])
+    .filter((p): p is ProfilePreset => p != null)
+  if (presets.length === 0) return null
+  const tips = Array.from(new Set(presets.flatMap((p) => p.tips)))
+  const recommendedFeatures = Array.from(
+    new Set(presets.flatMap((p) => p.recommendedFeatures)),
+  )
+  const label = presets.map((p) => p.label).join(' + ')
+  const preferencesOverride = mergeProfilePresets(profiles) as Partial<UserPreferences>
+  return {
+    label,
+    persona: presets[0].persona,
+    personaStory: presets[0].personaStory,
+    description: presets.map((p) => p.description).join(' '),
+    preferencesOverride,
+    tips,
+    recommendedFeatures,
+    primaryModalities: Array.from(
+      new Set(presets.flatMap((p) => p.primaryModalities)),
+    ),
+  }
+}
+
+/** Get preset for a single profile, or null if no profile */
 export function getProfilePreset(
   profile: DisabilityProfile | null,
 ): ProfilePreset | null {

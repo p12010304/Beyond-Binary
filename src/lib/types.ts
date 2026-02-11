@@ -1,6 +1,6 @@
 // Application-level types
 
-export type DisabilityProfile = 'visual' | 'hearing' | 'cognitive' | 'dyslexia' | 'motor' | 'multiple'
+export type DisabilityProfile = 'visual' | 'hearing' | 'cognitive' | 'dyslexia' | 'motor'
 
 export type OutputMode = 'voice' | 'visual' | 'haptic' | 'simplified'
 
@@ -32,7 +32,7 @@ export const defaultPreferences: UserPreferences = {
 
 export interface Profile {
   id: string
-  disability_profile: DisabilityProfile | null
+  disability_profiles: DisabilityProfile[]
   preferences: UserPreferences
   created_at: string
 }

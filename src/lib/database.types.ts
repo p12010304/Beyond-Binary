@@ -7,19 +7,19 @@ export interface Database {
       profiles: {
         Row: {
           id: string
-          disability_profile: string | null
+          disability_profiles: string[]
           preferences: Record<string, unknown>
           created_at: string
         }
         Insert: {
           id: string
-          disability_profile?: string | null
+          disability_profiles?: string[]
           preferences?: Record<string, unknown>
           created_at?: string
         }
         Update: {
           id?: string
-          disability_profile?: string | null
+          disability_profiles?: string[]
           preferences?: Record<string, unknown>
           created_at?: string
         }

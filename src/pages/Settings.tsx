@@ -1,16 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor, Mic, CheckCircle2, RefreshCw } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { useAccessibility } from '@/components/AccessibilityProvider'
+import { useAuth } from '@/hooks/useSupabase'
+import { supabase } from '@/lib/supabaseClient'
 import type { DisabilityProfile, OutputMode, UserPreferences, ThemeMode } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { isElevenLabsAvailable, ELEVENLABS_VOICES } from '@/services/elevenLabsTtsService'
 import { getTranscriptionEngine } from '@/services/transcriptionService'
-import { applyProfilePreset, profilePresets } from '@/lib/profilePresets'
+import { mergeProfilePresets, getMergedPreset } from '@/lib/profilePresets'
 
 const disabilityOptions: { value: DisabilityProfile; label: string; icon: React.ElementType; description: string }[] = [
   { value: 'visual', label: 'Visual', icon: Eye, description: 'Screen reader, audio output, high contrast' },
@@ -18,7 +20,6 @@ const disabilityOptions: { value: DisabilityProfile; label: string; icon: React.
   { value: 'cognitive', label: 'Cognitive', icon: Brain, description: 'Simplified UI, step-by-step guidance' },
   { value: 'dyslexia', label: 'Dyslexia', icon: Type, description: 'Audio alternatives, larger text, visual aids' },
   { value: 'motor', label: 'Motor', icon: Hand, description: 'Voice commands, large touch targets' },
-  { value: 'multiple', label: 'Multiple', icon: Brain, description: 'Combined accessibility features' },
 ]
 
 const outputModes: { value: OutputMode; label: string; description: string }[] = [
@@ -35,32 +36,42 @@ const themeOptions: { value: ThemeMode; label: string; icon: React.ElementType }
 ]
 
 export default function Settings() {
+  const { user } = useAuth()
   const {
     preferences,
     setPreferences,
-    disabilityProfile,
-    setDisabilityProfile,
+    disabilityProfiles,
+    setDisabilityProfiles,
     setTheme,
     speak,
   } = useAccessibility()
 
   const [localPrefs, setLocalPrefs] = useState<UserPreferences>({ ...preferences })
-  const [localProfile, setLocalProfile] = useState<DisabilityProfile | null>(disabilityProfile)
+  const [localProfiles, setLocalProfiles] = useState<DisabilityProfile[]>(disabilityProfiles)
+
+  // Sync local state when context updates (e.g. after profile fetch on login)
+  useEffect(() => {
+    setLocalPrefs({ ...preferences })
+    setLocalProfiles(disabilityProfiles)
+  }, [preferences, disabilityProfiles])
   const [saved, setSaved] = useState(false)
   const [profileApplied, setProfileApplied] = useState<string | null>(null)
 
-  const handleProfileSelect = (profile: DisabilityProfile) => {
-    setLocalProfile(profile)
-    // Auto-configure preferences based on profile
-    const newPrefs = applyProfilePreset(localPrefs, profile)
+  const handleProfileToggle = (profile: DisabilityProfile) => {
+    const next = localProfiles.includes(profile)
+      ? localProfiles.filter((p) => p !== profile)
+      : [...localProfiles, profile]
+    setLocalProfiles(next)
+    const merged = mergeProfilePresets(next)
+    const newPrefs = { ...localPrefs, ...merged } as UserPreferences
     setLocalPrefs(newPrefs)
-    const preset = profilePresets[profile]
-    setProfileApplied(preset.label)
+    const preset = getMergedPreset(next)
+    setProfileApplied(preset?.label ?? null)
     setTimeout(() => setProfileApplied(null), 4000)
   }
 
   const handleProfileClear = () => {
-    setLocalProfile(null)
+    setLocalProfiles([])
     setLocalPrefs({ ...defaultPreferences })
     setProfileApplied(null)
   }
@@ -79,9 +90,22 @@ export default function Settings() {
     }))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setPreferences(localPrefs)
-    setDisabilityProfile(localProfile)
+    setDisabilityProfiles(localProfiles)
+    if (user?.id) {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: user.id,
+            disability_profiles: localProfiles,
+            preferences: localPrefs as unknown as Record<string, unknown>,
+          },
+          { onConflict: 'id' },
+        )
+      if (error) console.error('Failed to save profile to Supabase:', error)
+    }
     setSaved(true)
     speak('Settings saved.')
     setTimeout(() => setSaved(false), 3000)
@@ -89,7 +113,7 @@ export default function Settings() {
 
   const handleReset = () => {
     setLocalPrefs({ ...defaultPreferences })
-    setLocalProfile(null)
+    setLocalProfiles([])
   }
 
   return (
@@ -106,39 +130,40 @@ export default function Settings() {
         <CardHeader>
           <CardTitle>Disability Profile</CardTitle>
           <CardDescription>
-            Select your profile to auto-configure accessibility features.
+            Select one or more profiles to auto-configure accessibility features.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" role="radiogroup" aria-label="Disability profile selection">
-            {disabilityOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => handleProfileSelect(option.value)}
-                className={cn(
-                  'flex flex-col items-start gap-2 rounded-[--radius-lg] border-2 p-4 text-left',
-                  'transition-all duration-[--duration-fast] ease-[--ease-out]',
-                  'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  localProfile === option.value
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border',
-                )}
-                role="radio"
-                aria-checked={localProfile === option.value}
-                aria-label={`${option.label}: ${option.description}`}
-              >
-                <option.icon
-                  className={cn('h-[1.125rem] w-[1.125rem]', localProfile === option.value ? 'text-primary' : 'text-muted-foreground')}
-                  aria-hidden="true"
-                />
-                <div>
-                  <p className="text-sm font-medium leading-tight">{option.label}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{option.description}</p>
-                </div>
-              </button>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" role="group" aria-label="Disability profile selection">
+            {disabilityOptions.map((option) => {
+              const isSelected = localProfiles.includes(option.value)
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => handleProfileToggle(option.value)}
+                  className={cn(
+                    'flex flex-col items-start gap-2 rounded-[--radius-lg] border-2 p-4 text-left',
+                    'transition-all duration-[--duration-fast] ease-[--ease-out]',
+                    'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    isSelected ? 'border-primary bg-primary/5' : 'border-border',
+                  )}
+                  role="checkbox"
+                  aria-checked={isSelected}
+                  aria-label={`${option.label}: ${option.description}`}
+                >
+                  <option.icon
+                    className={cn('h-[1.125rem] w-[1.125rem]', isSelected ? 'text-primary' : 'text-muted-foreground')}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="text-sm font-medium leading-tight">{option.label}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{option.description}</p>
+                  </div>
+                </button>
+              )
+            })}
           </div>
-          {localProfile && (
+          {localProfiles.length > 0 && (
             <Button variant="ghost" size="sm" className="mt-3" onClick={handleProfileClear}>
               Clear selection
             </Button>

@@ -1,20 +1,17 @@
+import { getGoogleAccessToken } from '@/lib/googleAccessToken'
 import type { CalendarEvent } from '@/lib/types'
 
 /**
- * Calendar service using Google Calendar API via gapi client.
- * Requires gapi to be loaded and authenticated first.
+ * Calendar service using Google Calendar API.
+ * Uses Supabase session provider_token when signed in with Google, otherwise gapi token from "Connect Google" flow.
  */
 
 const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3'
 
-function getAccessToken(): string | null {
-  return window.gapi?.client?.getToken()?.access_token ?? null
-}
-
 async function calendarFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
-  const token = getAccessToken()
+  const token = await getGoogleAccessToken()
   if (!token) {
-    throw new Error('Not authenticated with Google. Please sign in first.')
+    throw new Error('Not authenticated with Google. Please sign in or connect Google Calendar.')
   }
 
   const response = await fetch(`${CALENDAR_API_BASE}${endpoint}`, {

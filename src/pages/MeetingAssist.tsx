@@ -27,10 +27,10 @@ export default function MeetingAssist() {
   } = useTranscription()
 
   const { registerAction } = useVoiceNavigation()
-  const { speak, stopSpeaking, speechStatus, vibrate, preferences, disabilityProfile, wantsSimplified } = useAccessibility()
+  const { speak, stopSpeaking, speechStatus, vibrate, preferences, disabilityProfiles, wantsSimplified } = useAccessibility()
 
-  const isHearing = disabilityProfile === 'hearing'
-  const isCognitive = disabilityProfile === 'cognitive'
+  const isHearing = disabilityProfiles.includes('hearing')
+  const isCognitive = disabilityProfiles.includes('cognitive')
 
   const [summary, setSummary] = useState<AISummaryResult | null>(null)
   const [actionItems, setActionItems] = useState<ActionItem[]>([])

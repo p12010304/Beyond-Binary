@@ -21,9 +21,9 @@ export default function TranscriptDisplay({
 }: TranscriptDisplayProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const engine = getTranscriptionEngine()
-  const { disabilityProfile, wantsSimplified } = useAccessibility()
+  const { disabilityProfiles, wantsSimplified } = useAccessibility()
 
-  const isCaptionMode = disabilityProfile === 'hearing'
+  const isCaptionMode = disabilityProfiles.includes('hearing')
 
   useEffect(() => {
     if (containerRef.current) {
