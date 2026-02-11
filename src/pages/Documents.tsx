@@ -23,10 +23,10 @@ export default function Documents() {
   const [loadingEmails, setLoadingEmails] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
-  const { speak, disabilityProfile, wantsSimplified, wantsVoice } = useAccessibility()
+  const { speak, disabilities, wantsSimplified, wantsVoice } = useAccessibility()
 
-  const isCognitive = disabilityProfile === 'cognitive'
-  const isVisual = disabilityProfile === 'visual'
+  const isCognitive = disabilities.includes('cognitive')
+  const isVisual = disabilities.includes('visual')
 
   // Cognitive: fewer emails; visual: full set
   const maxEmails = isCognitive ? 5 : 10

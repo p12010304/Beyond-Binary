@@ -44,8 +44,8 @@ const allFeatures = [
 ]
 
 export default function Home() {
-  const { speak, preferences, disabilityProfile, wantsSimplified } = useAccessibility()
-  const preset = getProfilePreset(disabilityProfile)
+  const { speak, preferences, disabilities, wantsSimplified } = useAccessibility()
+  const preset = getProfilePreset(disabilities)
 
   // Reorder features based on profile's recommended order
   const features = useMemo(() => {
@@ -171,10 +171,10 @@ export default function Home() {
       {/* Profile status */}
       <section aria-label="Current settings" className="rounded-[--radius-lg] bg-muted/60 p-4">
         <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-          {disabilityProfile && (
+          {disabilities.length > 0 && preset && (
             <div>
               <span className="font-medium text-foreground">Profile:</span>{' '}
-              <Badge variant="default" className="text-xs ml-1">{preset?.label}</Badge>
+              <Badge variant="default" className="text-xs ml-1">{preset.label}</Badge>
             </div>
           )}
           <div>

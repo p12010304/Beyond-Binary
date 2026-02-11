@@ -135,31 +135,6 @@ export const profilePresets: Record<DisabilityProfile, ProfilePreset> = {
     recommendedFeatures: ['/prompt-hub', '/meeting', '/schedule', '/documents'],
     primaryModalities: ['voice', 'visual'],
   },
-
-  multiple: {
-    label: 'Multiple Disabilities',
-    persona: 'Everyone',
-    personaStory: 'Users with overlapping needs who benefit from every accessibility feature working together.',
-    description:
-      'Activates all accessibility features: high contrast, large text, auto text-to-speech, haptic feedback, simplified interface, and reduced motion. Every modality is available.',
-    preferencesOverride: {
-      simplified_ui: true,
-      auto_tts: true,
-      high_contrast: true,
-      haptic_feedback: true,
-      reduced_motion: true,
-      font_size: 'large',
-      output_mode: ['voice', 'visual', 'haptic', 'simplified'],
-    },
-    tips: [
-      'All accessibility features are enabled for maximum support.',
-      'Use voice, text, or touch — whichever works best for you.',
-      'Forms are simplified and responses are read aloud.',
-      'Adjust any setting in the Settings page if something feels off.',
-    ],
-    recommendedFeatures: ['/meeting', '/prompt-hub', '/documents', '/schedule'],
-    primaryModalities: ['text', 'voice', 'visual', 'haptic'],
-  },
 }
 
 /** Apply a profile preset on top of existing preferences */
@@ -174,10 +149,36 @@ export function applyProfilePreset(
   }
 }
 
-/** Get preset for a profile, or null if no profile */
+/** Get merged preset for one or more profiles; null when array is empty */
 export function getProfilePreset(
-  profile: DisabilityProfile | null,
+  profiles: DisabilityProfile[],
 ): ProfilePreset | null {
-  if (!profile) return null
-  return profilePresets[profile] ?? null
+  if (!profiles.length) return null
+  if (profiles.length === 1) return profilePresets[profiles[0]] ?? null
+  return getMergedPreset(profiles)
+}
+
+/** Merge multiple profile presets (tips, recommendedFeatures, preferencesOverride) */
+function getMergedPreset(profiles: DisabilityProfile[]): ProfilePreset {
+  const first = profilePresets[profiles[0]]
+  let merged: ProfilePreset = {
+    ...first,
+    label: profiles.length > 1 ? 'Multiple profiles' : first.label,
+    persona: first.persona,
+    personaStory: first.personaStory,
+    description: first.description,
+    preferencesOverride: { ...first.preferencesOverride },
+    tips: [...first.tips],
+    recommendedFeatures: [...first.recommendedFeatures],
+    primaryModalities: [...first.primaryModalities],
+  }
+  for (let i = 1; i < profiles.length; i++) {
+    const p = profilePresets[profiles[i]]
+    if (!p) continue
+    Object.assign(merged.preferencesOverride, p.preferencesOverride)
+    merged.tips = [...new Set([...merged.tips, ...p.tips])]
+    merged.recommendedFeatures = [...new Set([...merged.recommendedFeatures, ...p.recommendedFeatures])]
+    merged.primaryModalities = [...new Set([...merged.primaryModalities, ...p.primaryModalities])]
+  }
+  return merged
 }
