@@ -1,10 +1,11 @@
-import { useState } from 'react'
-import { MessageCircle, Volume2, Trash2, Clock, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { MessageCircle, Volume2, Trash2, Clock, AlertCircle, Info } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import PromptForm from '@/components/PromptForm'
 import PromptTemplates, { type PromptTemplate } from '@/components/PromptTemplates'
+import ModalityBadges from '@/components/ModalityBadges'
 import { useAccessibility } from '@/components/AccessibilityProvider'
 import { answerPrompt } from '@/services/aiService'
 
@@ -21,7 +22,20 @@ export default function PromptHub() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
-  const { speak, preferences } = useAccessibility()
+  const { speak, preferences, disabilities, wantsSimplified } = useAccessibility()
+
+  const isCognitive = disabilities.includes('cognitive')
+  const isDyslexia = disabilities.includes('dyslexia')
+  const isVisual = disabilities.includes('visual')
+  const showFewerTemplates = isCognitive || isDyslexia
+
+  // Auto-focus textarea for visual profile
+  useEffect(() => {
+    if (isVisual) {
+      const textarea = document.getElementById('prompt-input')
+      if (textarea) textarea.focus()
+    }
+  }, [isVisual])
 
   const handleSubmit = async (prompt: string) => {
     setIsLoading(true)
@@ -70,23 +84,57 @@ export default function PromptHub() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold tracking-tight">Prompt Hub</h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold tracking-tight">Prompt Hub</h2>
+          <ModalityBadges compact />
+        </div>
         <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-          Interact with AI using text, voice, or guided templates.
+          {wantsSimplified
+            ? 'Ask the AI a question. Use a template or type your own.'
+            : 'Interact with AI using text, voice, or guided templates.'}
         </p>
       </div>
 
+      {/* Cognitive: guided instructions */}
+      {isCognitive && (
+        <div className="rounded-[--radius-lg] bg-primary/5 border border-primary/20 p-4">
+          <p className="text-sm font-medium mb-2 flex items-center gap-2">
+            <Info className="h-4 w-4 text-primary" aria-hidden="true" />
+            How to use:
+          </p>
+          <ol className="space-y-1 text-sm text-muted-foreground">
+            <li className="flex gap-2">
+              <Badge variant="secondary" className="shrink-0 text-xs">1</Badge>
+              Pick a template below, or type your own question.
+            </li>
+            <li className="flex gap-2">
+              <Badge variant="secondary" className="shrink-0 text-xs">2</Badge>
+              Press <strong>Send</strong> (or Enter).
+            </li>
+            <li className="flex gap-2">
+              <Badge variant="secondary" className="shrink-0 text-xs">3</Badge>
+              The AI answer appears below. Click <strong>Read Aloud</strong> to hear it.
+            </li>
+          </ol>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle>Quick Templates</CardTitle>
+          <CardTitle>
+            {wantsSimplified ? 'Pick a Template' : 'Quick Templates'}
+          </CardTitle>
           <CardDescription>
-            {preferences.simplified_ui
+            {wantsSimplified
               ? 'Tap a button to start with a ready-made prompt.'
               : 'Select a template to pre-fill your prompt, then customize it.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PromptTemplates onSelect={handleTemplateSelect} />
+          <PromptTemplates
+            onSelect={handleTemplateSelect}
+            maxVisible={showFewerTemplates ? 3 : undefined}
+          />
         </CardContent>
       </Card>
 
@@ -94,7 +142,7 @@ export default function PromptHub() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MessageCircle className="h-[1.125rem] w-[1.125rem] text-primary" aria-hidden="true" />
-            Ask a Question
+            {wantsSimplified ? 'Your Question' : 'Ask a Question'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -103,6 +151,11 @@ export default function PromptHub() {
             onChange={setPromptValue}
             onSubmit={handleSubmit}
             isLoading={isLoading}
+            placeholder={
+              wantsSimplified
+                ? 'Type your question here, or use the microphone.'
+                : undefined
+            }
           />
         </CardContent>
       </Card>
@@ -118,7 +171,7 @@ export default function PromptHub() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Response</CardTitle>
+              <CardTitle>{wantsSimplified ? 'Answer' : 'Response'}</CardTitle>
               <Button
                 variant="ghost"
                 size="sm"
@@ -138,7 +191,7 @@ export default function PromptHub() {
         </Card>
       )}
 
-      {history.length > 0 && (
+      {history.length > 0 && !wantsSimplified && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">

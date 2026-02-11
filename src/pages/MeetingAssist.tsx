@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { AlertCircle, Download } from 'lucide-react'
+import { AlertCircle, Info } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -7,6 +7,7 @@ import MeetingControls from '@/components/MeetingControls'
 import SpeechPlayer from '@/components/SpeechPlayer'
 import TranscriptDisplay from '@/components/TranscriptDisplay'
 import ActionItems from '@/components/ActionItems'
+import ModalityBadges from '@/components/ModalityBadges'
 import { useTranscription } from '@/hooks/useTranscription'
 import { useVoiceNavigation } from '@/hooks/useVoiceNavigation'
 import { useAccessibility } from '@/components/AccessibilityProvider'
@@ -28,7 +29,10 @@ export default function MeetingAssist() {
   } = useTranscription()
 
   const { registerAction } = useVoiceNavigation()
-  const { speak, stopSpeaking, speechStatus, vibrate, preferences } = useAccessibility()
+  const { speak, stopSpeaking, speechStatus, vibrate, preferences, disabilities, wantsSimplified } = useAccessibility()
+
+  const isHearing = disabilities.includes('hearing')
+  const isCognitive = disabilities.includes('cognitive')
 
   const [summary, setSummary] = useState<AISummaryResult | null>(null)
   const [actionItems, setActionItems] = useState<ActionItem[]>([])
@@ -178,13 +182,54 @@ export default function MeetingAssist() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold tracking-tight">Meeting Assist</h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-xl font-semibold tracking-tight">Meeting Assist</h2>
+          <ModalityBadges compact />
+        </div>
         <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-          Transcribe speech in real time with automatic summaries and action items.
-          <br />
-          <span className="text-xs opacity-75">Voice commands: "Start", "Stop", "Summarize", "Read", "Reset"</span>
+          {wantsSimplified
+            ? 'Record a meeting. Get a summary and to-do list.'
+            : 'Transcribe speech in real time with automatic summaries and action items.'}
+          {!wantsSimplified && (
+            <>
+              <br />
+              <span className="text-xs opacity-75">Voice commands: "Start", "Stop", "Summarize", "Read", "Reset"</span>
+            </>
+          )}
         </p>
       </div>
+
+      {/* Cognitive profile: step-by-step guidance */}
+      {isCognitive && (
+        <div className="rounded-[--radius-lg] bg-primary/5 border border-primary/20 p-4">
+          <p className="text-sm font-medium mb-2 flex items-center gap-2">
+            <Info className="h-4 w-4 text-primary" aria-hidden="true" />
+            Follow these steps:
+          </p>
+          <ol className="space-y-1 text-sm text-muted-foreground">
+            <li className="flex gap-2">
+              <Badge variant={isListening || isInitializing ? 'success' : 'secondary'} className="shrink-0 text-xs">1</Badge>
+              Click <strong>Start Recording</strong> and wait for "Ready".
+            </li>
+            <li className="flex gap-2">
+              <Badge variant={!!transcript ? 'success' : 'secondary'} className="shrink-0 text-xs">2</Badge>
+              Speak clearly. Your words appear below.
+            </li>
+            <li className="flex gap-2">
+              <Badge variant={!!summary ? 'success' : 'secondary'} className="shrink-0 text-xs">3</Badge>
+              Click <strong>Summarize</strong> to get a summary and action items.
+            </li>
+          </ol>
+        </div>
+      )}
+
+      {/* Hearing profile: caption mode note */}
+      {isHearing && (
+        <div className="rounded-[--radius-lg] bg-accent/10 border border-accent/20 p-3 flex items-center gap-2 text-sm text-accent-foreground">
+          <Info className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+          Caption mode is on. Transcript displays in large, high-contrast text below.
+        </div>
+      )}
 
       {!isSupported && (
         <div role="alert" className="flex items-center gap-2 rounded-[--radius-lg] bg-warning/10 border border-warning p-4 text-sm">

@@ -18,6 +18,8 @@ interface EventFormProps {
   className?: string
 }
 
+type VoiceField = 'summary' | 'description' | 'location'
+
 export default function EventForm({ onSubmit, className }: EventFormProps) {
   const [summary, setSummary] = useState('')
   const [description, setDescription] = useState('')
@@ -27,18 +29,22 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
   const [endTime, setEndTime] = useState('')
   const [location, setLocation] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [activeField, setActiveField] = useState<'summary' | 'description' | 'location' | null>(null)
+  const [activeField, setActiveField] = useState<VoiceField | null>(null)
 
-  const { isListening, transcript, startListening, stopListening, resetTranscript } = useTranscription()
+  const { isInitializing, isListening, transcript, startListening, stopListening, resetTranscript } = useTranscription()
   const { preferences } = useAccessibility()
   const simplified = preferences.simplified_ui
 
-  const toggleVoiceInput = (field: 'summary' | 'description' | 'location') => {
-    if (isListening) {
+  const isMicBusy = isInitializing || isListening
+
+  const toggleVoiceInput = (field: VoiceField) => {
+    if (isMicBusy) {
       stopListening()
-      if (activeField === 'summary') setSummary((prev) => (prev ? `${prev} ${transcript}` : transcript))
-      else if (activeField === 'description') setDescription((prev) => (prev ? `${prev} ${transcript}` : transcript))
-      else if (activeField === 'location') setLocation((prev) => (prev ? `${prev} ${transcript}` : transcript))
+      if (transcript) {
+        if (activeField === 'summary') setSummary((prev) => (prev ? `${prev} ${transcript}` : transcript))
+        else if (activeField === 'description') setDescription((prev) => (prev ? `${prev} ${transcript}` : transcript))
+        else if (activeField === 'location') setLocation((prev) => (prev ? `${prev} ${transcript}` : transcript))
+      }
       resetTranscript()
       setActiveField(null)
     } else {
@@ -46,6 +52,71 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
       setActiveField(field)
       startListening()
     }
+  }
+
+  /** Renders the mic button for a given field with initializing/listening/idle states */
+  const renderMicButton = (field: VoiceField, label: string) => {
+    const isActiveForField = activeField === field
+    const isFieldInitializing = isActiveForField && isInitializing
+    const isFieldListening = isActiveForField && isListening
+
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={() => toggleVoiceInput(field)}
+        aria-label={
+          isFieldInitializing
+            ? `Preparing microphone for ${label} — click to cancel`
+            : isFieldListening
+              ? `Stop voice input for ${label}`
+              : `Use voice input for ${label}`
+        }
+      >
+        {isFieldInitializing ? (
+          <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
+        ) : isFieldListening ? (
+          <MicOff className="h-4 w-4 text-destructive" aria-hidden="true" />
+        ) : (
+          <Mic className="h-4 w-4" aria-hidden="true" />
+        )}
+      </Button>
+    )
+  }
+
+  /** Renders the readiness/transcript hint below a voice-active field */
+  const renderVoiceHint = (field: VoiceField) => {
+    if (activeField !== field) return null
+
+    if (isInitializing) {
+      return (
+        <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5" aria-live="polite">
+          <Loader2 className="h-3 w-3 animate-spin text-primary" aria-hidden="true" />
+          Preparing microphone&hellip; Please wait before speaking.
+        </p>
+      )
+    }
+
+    if (isListening && !transcript) {
+      return (
+        <p className="text-xs mt-1.5 flex items-center gap-1.5" aria-live="polite">
+          <span className="h-1.5 w-1.5 rounded-full bg-success animate-recording" aria-hidden="true" />
+          <span className="text-success font-medium">Ready</span>
+          <span className="text-muted-foreground">— speak now.</span>
+        </p>
+      )
+    }
+
+    if (transcript) {
+      return (
+        <p className="text-xs text-muted-foreground mt-1.5" aria-live="polite">
+          Hearing: {transcript}
+        </p>
+      )
+    }
+
+    return null
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,20 +173,9 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
                 required
                 aria-required="true"
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => toggleVoiceInput('summary')}
-                aria-label={isListening && activeField === 'summary' ? 'Stop voice input' : 'Use voice input for event name'}
-              >
-                {isListening && activeField === 'summary' ? (
-                  <MicOff className="h-4 w-4 text-destructive" aria-hidden="true" />
-                ) : (
-                  <Mic className="h-4 w-4" aria-hidden="true" />
-                )}
-              </Button>
+              {renderMicButton('summary', 'event name')}
             </div>
+            {renderVoiceHint('summary')}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -182,20 +242,9 @@ export default function EventForm({ onSubmit, className }: EventFormProps) {
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="e.g., Conference Room A"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => toggleVoiceInput('location')}
-                  aria-label="Use voice input for location"
-                >
-                  {isListening && activeField === 'location' ? (
-                    <MicOff className="h-4 w-4 text-destructive" aria-hidden="true" />
-                  ) : (
-                    <Mic className="h-4 w-4" aria-hidden="true" />
-                  )}
-                </Button>
+                {renderMicButton('location', 'location')}
               </div>
+              {renderVoiceHint('location')}
             </div>
           )}
 

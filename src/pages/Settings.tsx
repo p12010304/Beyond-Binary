@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor, Mic } from 'lucide-react'
+import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor, Mic, CheckCircle2, RefreshCw } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -10,6 +10,7 @@ import { defaultPreferences } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { isElevenLabsAvailable, ELEVENLABS_VOICES } from '@/services/elevenLabsTtsService'
 import { getTranscriptionEngine } from '@/services/transcriptionService'
+import { applyProfilePreset, profilePresets } from '@/lib/profilePresets'
 
 const disabilityOptions: { value: DisabilityProfile; label: string; icon: React.ElementType; description: string }[] = [
   { value: 'visual', label: 'Visual', icon: Eye, description: 'Screen reader, audio output, high contrast' },
@@ -17,7 +18,6 @@ const disabilityOptions: { value: DisabilityProfile; label: string; icon: React.
   { value: 'cognitive', label: 'Cognitive', icon: Brain, description: 'Simplified UI, step-by-step guidance' },
   { value: 'dyslexia', label: 'Dyslexia', icon: Type, description: 'Audio alternatives, larger text, visual aids' },
   { value: 'motor', label: 'Motor', icon: Hand, description: 'Voice commands, large touch targets' },
-  { value: 'multiple', label: 'Multiple', icon: Brain, description: 'Combined accessibility features' },
 ]
 
 const outputModes: { value: OutputMode; label: string; description: string }[] = [
@@ -37,14 +37,48 @@ export default function Settings() {
   const {
     preferences,
     setPreferences,
-    disabilityProfile,
-    setDisabilityProfile,
+    disabilities,
+    setDisabilities,
+    setTheme,
     speak,
   } = useAccessibility()
 
   const [localPrefs, setLocalPrefs] = useState<UserPreferences>({ ...preferences })
-  const [localProfile, setLocalProfile] = useState<DisabilityProfile | null>(disabilityProfile)
+  const [localProfile, setLocalProfile] = useState<DisabilityProfile[]>(disabilities)
   const [saved, setSaved] = useState(false)
+  const [profileApplied, setProfileApplied] = useState<string | null>(null)
+
+  const handleProfileToggle = (profile: DisabilityProfile) => {
+    const next = localProfile.includes(profile)
+      ? localProfile.filter((p) => p !== profile)
+      : [...localProfile, profile]
+    setLocalProfile(next)
+    if (next.length > 0) {
+      // Apply presets in sequence so multiple profiles merge preferences
+      let newPrefs = { ...localPrefs }
+      for (const p of next) {
+        newPrefs = applyProfilePreset(newPrefs, p)
+      }
+      setLocalPrefs(newPrefs)
+      const preset = profilePresets[profile]
+      setProfileApplied(preset.label)
+      setTimeout(() => setProfileApplied(null), 4000)
+    } else {
+      setLocalPrefs({ ...defaultPreferences })
+      setProfileApplied(null)
+    }
+  }
+
+  const handleProfileClear = () => {
+    setLocalProfile([])
+    setLocalPrefs({ ...defaultPreferences })
+    setProfileApplied(null)
+  }
+
+  const handleRerunOnboarding = () => {
+    localStorage.removeItem('accessadmin_onboarding_complete')
+    window.location.reload()
+  }
 
   const handleOutputModeToggle = (mode: OutputMode) => {
     setLocalPrefs((prev) => ({
@@ -57,7 +91,7 @@ export default function Settings() {
 
   const handleSave = () => {
     setPreferences(localPrefs)
-    setDisabilityProfile(localProfile)
+    setDisabilities(localProfile.length ? localProfile : [])
     setSaved(true)
     speak('Settings saved.')
     setTimeout(() => setSaved(false), 3000)
@@ -65,7 +99,7 @@ export default function Settings() {
 
   const handleReset = () => {
     setLocalPrefs({ ...defaultPreferences })
-    setLocalProfile(null)
+    setLocalProfile([])
   }
 
   return (
@@ -82,42 +116,54 @@ export default function Settings() {
         <CardHeader>
           <CardTitle>Disability Profile</CardTitle>
           <CardDescription>
-            Select your profile to auto-configure accessibility features.
+            Select one or more profiles to auto-configure accessibility features.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" role="radiogroup" aria-label="Disability profile selection">
-            {disabilityOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setLocalProfile(option.value)}
-                className={cn(
-                  'flex flex-col items-start gap-2 rounded-[--radius-lg] border-2 p-4 text-left',
-                  'transition-all duration-[--duration-fast] ease-[--ease-out]',
-                  'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  localProfile === option.value
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border',
-                )}
-                role="radio"
-                aria-checked={localProfile === option.value}
-                aria-label={`${option.label}: ${option.description}`}
-              >
-                <option.icon
-                  className={cn('h-[1.125rem] w-[1.125rem]', localProfile === option.value ? 'text-primary' : 'text-muted-foreground')}
-                  aria-hidden="true"
-                />
-                <div>
-                  <p className="text-sm font-medium leading-tight">{option.label}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{option.description}</p>
-                </div>
-              </button>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" role="group" aria-label="Disability profile selection">
+            {disabilityOptions.map((option) => {
+              const isSelected = localProfile.includes(option.value)
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => handleProfileToggle(option.value)}
+                  className={cn(
+                    'flex flex-col items-start gap-2 rounded-[--radius-lg] border-2 p-4 text-left',
+                    'transition-all duration-[--duration-fast] ease-[--ease-out]',
+                    'hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    isSelected ? 'border-primary bg-primary/5' : 'border-border',
+                  )}
+                  role="checkbox"
+                  aria-checked={isSelected}
+                  aria-label={`${option.label}: ${option.description}`}
+                >
+                  <option.icon
+                    className={cn('h-[1.125rem] w-[1.125rem]', isSelected ? 'text-primary' : 'text-muted-foreground')}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="text-sm font-medium leading-tight">{option.label}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{option.description}</p>
+                  </div>
+                </button>
+              )
+            })}
           </div>
-          {localProfile && (
-            <Button variant="ghost" size="sm" className="mt-3" onClick={() => setLocalProfile(null)}>
+          {localProfile.length > 0 && (
+            <Button variant="ghost" size="sm" className="mt-3" onClick={handleProfileClear}>
               Clear selection
             </Button>
+          )}
+
+          {profileApplied && (
+            <div
+              className="mt-3 flex items-center gap-2 rounded-[--radius-md] bg-success/10 border border-success/30 px-3 py-2 text-sm text-success"
+              role="status"
+              aria-live="polite"
+            >
+              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Settings auto-configured for {profileApplied}. You can adjust below.
+            </div>
           )}
         </CardContent>
       </Card>
@@ -134,7 +180,10 @@ export default function Settings() {
               <Button
                 key={opt.value}
                 variant={localPrefs.theme === opt.value ? 'default' : 'outline'}
-                onClick={() => setLocalPrefs((p) => ({ ...p, theme: opt.value }))}
+                onClick={() => {
+                  setLocalPrefs((p) => ({ ...p, theme: opt.value }))
+                  setTheme(opt.value) // Apply immediately so the user sees the change
+                }}
                 role="radio"
                 aria-checked={localPrefs.theme === opt.value}
                 aria-label={`${opt.label} theme`}
@@ -380,7 +429,7 @@ export default function Settings() {
       </Card>
 
       {/* Save / Reset */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button onClick={handleSave}>
           <Save className="h-4 w-4" aria-hidden="true" />
           Save Settings
@@ -388,6 +437,10 @@ export default function Settings() {
         <Button onClick={handleReset} variant="outline">
           <RotateCcw className="h-4 w-4" aria-hidden="true" />
           Reset to Defaults
+        </Button>
+        <Button onClick={handleRerunOnboarding} variant="ghost">
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          Re-run Setup Wizard
         </Button>
         {saved && (
           <Badge variant="success" aria-live="polite">
