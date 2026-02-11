@@ -11,6 +11,7 @@ import Documents from '@/pages/Documents'
 import PromptHub from '@/pages/PromptHub'
 import Settings from '@/pages/Settings'
 import Login from '@/pages/Login'
+import Landing from '@/pages/Landing'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,11 +28,12 @@ function App() {
       <AccessibilityProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<OnboardingGate />}>
                 <Route element={<Layout />}>
-                  <Route path="/" element={<Home />} />
+                  <Route path="/home" element={<Home />} />
                   <Route path="/meeting" element={<MeetingAssist />} />
                   <Route path="/schedule" element={<Schedule />} />
                   <Route path="/documents" element={<Documents />} />
