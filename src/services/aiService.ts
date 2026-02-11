@@ -57,17 +57,22 @@ Analyze the following meeting transcript and provide:
 1. A clear, concise summary (2-4 sentences, using simple language)
 2. A list of action items with assignees if mentioned
 3. Key topics discussed
+4. An analysis of the overall tone/sentiment of the meeting (neutral, positive, negative, tense, or collaborative)
+5. A brief explanation of the tone and any speaker dynamics based on the provided speaker labels and tone tags (e.g. "[Speaker A • Neutral]")
 
 Format your response as JSON with this structure:
 {
   "summary": "...",
   "action_items": [{"task": "...", "due": null, "completed": false}],
-  "key_topics": ["..."]
+  "key_topics": ["..."],
+  "sentiment": "neutral", 
+  "tone_analysis": "..."
 }
 
 Transcript:
 ${transcript}
 
+Note: The transcript contains mocked speaker labels and tone tags. Treat them as ground truth for your analysis.
 Respond ONLY with valid JSON, no markdown formatting.`
 
   const result = await callGemini(prompt)
@@ -80,6 +85,8 @@ Respond ONLY with valid JSON, no markdown formatting.`
       summary: result,
       action_items: [],
       key_topics: [],
+      sentiment: 'neutral',
+      tone_analysis: 'Analysis unavailable',
     }
   }
 }
