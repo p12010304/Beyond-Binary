@@ -2,9 +2,6 @@
 
 export type DisabilityProfile = 'visual' | 'hearing' | 'cognitive' | 'dyslexia' | 'motor'
 
-/** Alias for disability selection (multi-select); use DisabilityProfile[] in state. */
-export type DisabilityType = DisabilityProfile
-
 export type OutputMode = 'voice' | 'visual' | 'haptic' | 'simplified'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
@@ -35,7 +32,7 @@ export const defaultPreferences: UserPreferences = {
 
 export interface Profile {
   id: string
-  disability_profile: DisabilityProfile[]
+  disability_profiles: DisabilityProfile[]
   preferences: UserPreferences
   created_at: string
 }
@@ -78,6 +75,4 @@ export interface AISummaryResult {
   summary: string
   action_items: ActionItem[]
   key_topics: string[]
-  sentiment: 'neutral' | 'positive' | 'negative' | 'tense' | 'collaborative'
-  tone_analysis: string
 }

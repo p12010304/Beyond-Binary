@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/Button'
 import ScheduleView from '@/components/ScheduleView'
 import EventForm from '@/components/EventForm'
 import { useCalendar } from '@/hooks/useCalendar'
-import { hasValidToken, loadGapiScript, loadGisScript, requestAccessToken } from '@/lib/googleAuth'
+import { getGoogleAccessToken } from '@/lib/googleAccessToken'
+import { loadGapiScript, loadGisScript, requestAccessToken } from '@/lib/googleAuth'
 
 export default function Schedule() {
   const { events, loading, error, loadEvents, addEvent, removeEvent } = useCalendar()
@@ -13,7 +14,7 @@ export default function Schedule() {
   const [isConnecting, setIsConnecting] = useState(false)
 
   useEffect(() => {
-    setIsAuthenticated(hasValidToken())
+    getGoogleAccessToken().then((token) => setIsAuthenticated(!!token))
   }, [])
 
   useEffect(() => {

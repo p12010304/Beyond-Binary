@@ -1,15 +1,12 @@
+import { getGoogleAccessToken } from '@/lib/googleAccessToken'
 import { summarizeDocument } from '@/services/aiService'
 
 /**
  * Document and email handling service.
- * Uses Gmail API for email access and Tesseract.js for OCR.
+ * Uses Gmail API for email access (Supabase provider_token when signed in with Google, else gapi token) and Tesseract.js for OCR.
  */
 
 const GMAIL_API_BASE = 'https://www.googleapis.com/gmail/v1'
-
-function getAccessToken(): string | null {
-  return window.gapi?.client?.getToken()?.access_token ?? null
-}
 
 // ============================================================
 // Gmail API Functions
@@ -25,9 +22,9 @@ interface GmailMessage {
 }
 
 async function gmailFetch(endpoint: string): Promise<Response> {
-  const token = getAccessToken()
+  const token = await getGoogleAccessToken()
   if (!token) {
-    throw new Error('Not authenticated with Google. Please sign in first.')
+    throw new Error('Not authenticated with Google. Please sign in or connect Google.')
   }
 
   const response = await fetch(`${GMAIL_API_BASE}${endpoint}`, {

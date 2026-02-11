@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAccessibility } from '@/components/AccessibilityProvider'
-import { getProfilePreset } from '@/lib/profilePresets'
+import { getMergedPreset } from '@/lib/profilePresets'
 import ModalityBadges from '@/components/ModalityBadges'
 
 const allFeatures = [
@@ -44,8 +44,8 @@ const allFeatures = [
 ]
 
 export default function Home() {
-  const { speak, preferences, disabilities, wantsSimplified } = useAccessibility()
-  const preset = getProfilePreset(disabilities)
+  const { speak, preferences, disabilityProfiles, wantsSimplified } = useAccessibility()
+  const preset = getMergedPreset(disabilityProfiles)
 
   // Reorder features based on profile's recommended order
   const features = useMemo(() => {
@@ -171,10 +171,10 @@ export default function Home() {
       {/* Profile status */}
       <section aria-label="Current settings" className="rounded-[--radius-lg] bg-muted/60 p-4">
         <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-          {disabilities.length > 0 && preset && (
+          {disabilityProfiles.length > 0 && (
             <div>
               <span className="font-medium text-foreground">Profile:</span>{' '}
-              <Badge variant="default" className="text-xs ml-1">{preset.label}</Badge>
+              <Badge variant="default" className="text-xs ml-1">{preset?.label}</Badge>
             </div>
           )}
           <div>

@@ -1,16 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Save, RotateCcw, Volume2, Eye, Hand, Brain, Type, Sun, Moon, Monitor, Mic, CheckCircle2, RefreshCw } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { useAccessibility } from '@/components/AccessibilityProvider'
+import { useAuth } from '@/hooks/useSupabase'
+import { supabase } from '@/lib/supabaseClient'
 import type { DisabilityProfile, OutputMode, UserPreferences, ThemeMode } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { isElevenLabsAvailable, ELEVENLABS_VOICES } from '@/services/elevenLabsTtsService'
 import { getTranscriptionEngine } from '@/services/transcriptionService'
-import { applyProfilePreset, profilePresets } from '@/lib/profilePresets'
+import { mergeProfilePresets, getMergedPreset } from '@/lib/profilePresets'
 
 const disabilityOptions: { value: DisabilityProfile; label: string; icon: React.ElementType; description: string }[] = [
   { value: 'visual', label: 'Visual', icon: Eye, description: 'Screen reader, audio output, high contrast' },
@@ -34,43 +36,42 @@ const themeOptions: { value: ThemeMode; label: string; icon: React.ElementType }
 ]
 
 export default function Settings() {
+  const { user } = useAuth()
   const {
     preferences,
     setPreferences,
-    disabilities,
-    setDisabilities,
+    disabilityProfiles,
+    setDisabilityProfiles,
     setTheme,
     speak,
   } = useAccessibility()
 
   const [localPrefs, setLocalPrefs] = useState<UserPreferences>({ ...preferences })
-  const [localProfile, setLocalProfile] = useState<DisabilityProfile[]>(disabilities)
+  const [localProfiles, setLocalProfiles] = useState<DisabilityProfile[]>(disabilityProfiles)
+
+  // Sync local state when context updates (e.g. after profile fetch on login)
+  useEffect(() => {
+    setLocalPrefs({ ...preferences })
+    setLocalProfiles(disabilityProfiles)
+  }, [preferences, disabilityProfiles])
   const [saved, setSaved] = useState(false)
   const [profileApplied, setProfileApplied] = useState<string | null>(null)
 
   const handleProfileToggle = (profile: DisabilityProfile) => {
-    const next = localProfile.includes(profile)
-      ? localProfile.filter((p) => p !== profile)
-      : [...localProfile, profile]
-    setLocalProfile(next)
-    if (next.length > 0) {
-      // Apply presets in sequence so multiple profiles merge preferences
-      let newPrefs = { ...localPrefs }
-      for (const p of next) {
-        newPrefs = applyProfilePreset(newPrefs, p)
-      }
-      setLocalPrefs(newPrefs)
-      const preset = profilePresets[profile]
-      setProfileApplied(preset.label)
-      setTimeout(() => setProfileApplied(null), 4000)
-    } else {
-      setLocalPrefs({ ...defaultPreferences })
-      setProfileApplied(null)
-    }
+    const next = localProfiles.includes(profile)
+      ? localProfiles.filter((p) => p !== profile)
+      : [...localProfiles, profile]
+    setLocalProfiles(next)
+    const merged = mergeProfilePresets(next)
+    const newPrefs = { ...localPrefs, ...merged } as UserPreferences
+    setLocalPrefs(newPrefs)
+    const preset = getMergedPreset(next)
+    setProfileApplied(preset?.label ?? null)
+    setTimeout(() => setProfileApplied(null), 4000)
   }
 
   const handleProfileClear = () => {
-    setLocalProfile([])
+    setLocalProfiles([])
     setLocalPrefs({ ...defaultPreferences })
     setProfileApplied(null)
   }
@@ -89,9 +90,22 @@ export default function Settings() {
     }))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setPreferences(localPrefs)
-    setDisabilities(localProfile.length ? localProfile : [])
+    setDisabilityProfiles(localProfiles)
+    if (user?.id) {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: user.id,
+            disability_profiles: localProfiles,
+            preferences: localPrefs as unknown as Record<string, unknown>,
+          },
+          { onConflict: 'id' },
+        )
+      if (error) console.error('Failed to save profile to Supabase:', error)
+    }
     setSaved(true)
     speak('Settings saved.')
     setTimeout(() => setSaved(false), 3000)
@@ -99,7 +113,7 @@ export default function Settings() {
 
   const handleReset = () => {
     setLocalPrefs({ ...defaultPreferences })
-    setLocalProfile([])
+    setLocalProfiles([])
   }
 
   return (
@@ -122,7 +136,7 @@ export default function Settings() {
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" role="group" aria-label="Disability profile selection">
             {disabilityOptions.map((option) => {
-              const isSelected = localProfile.includes(option.value)
+              const isSelected = localProfiles.includes(option.value)
               return (
                 <button
                   key={option.value}
@@ -149,7 +163,7 @@ export default function Settings() {
               )
             })}
           </div>
-          {localProfile.length > 0 && (
+          {localProfiles.length > 0 && (
             <Button variant="ghost" size="sm" className="mt-3" onClick={handleProfileClear}>
               Clear selection
             </Button>

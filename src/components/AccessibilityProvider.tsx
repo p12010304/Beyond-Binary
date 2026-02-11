@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
-import type { UserPreferences, DisabilityProfile, DisabilityType, ThemeMode } from '@/lib/types'
+import type { UserPreferences, DisabilityProfile, ThemeMode } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
 import {
   isElevenLabsAvailable,
@@ -9,6 +9,8 @@ import {
   resumeElevenLabs,
   seekElevenLabs,
 } from '@/services/elevenLabsTtsService'
+import { useAuth } from '@/hooks/useSupabase'
+import { supabase } from '@/lib/supabaseClient'
 
 type TtsProvider = 'elevenlabs' | 'browser'
 
@@ -17,10 +19,8 @@ export type SpeechStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'ended'
 interface AccessibilityContextType {
   preferences: UserPreferences
   setPreferences: (prefs: UserPreferences) => void
-  /** Selected disability types (multi-select). Use includes() for checks. */
-  disabilities: DisabilityType[]
-  setDisabilities: (profiles: DisabilityType[]) => void
-  toggleDisability: (type: DisabilityType) => void
+  disabilityProfiles: DisabilityProfile[]
+  setDisabilityProfiles: (profiles: DisabilityProfile[]) => void
   speak: (text: string) => void
   stopSpeaking: () => void
   pauseSpeaking: () => void
@@ -48,23 +48,6 @@ const AccessibilityContext = createContext<AccessibilityContextType | null>(null
 const PREFERENCES_KEY = 'accessadmin_preferences'
 const PROFILE_KEY = 'accessadmin_disability_profile'
 
-const DISABILITY_PROFILE_VALUES: DisabilityProfile[] = ['visual', 'hearing', 'cognitive', 'dyslexia', 'motor']
-
-function loadDisabilityProfileFromStorage(): DisabilityProfile[] {
-  try {
-    const stored = localStorage.getItem(PROFILE_KEY)
-    if (!stored) return []
-    const parsed = JSON.parse(stored)
-    // Backward compat: legacy single string or single value stored as string
-    if (typeof parsed === 'string') return parsed ? [parsed as DisabilityProfile] : []
-    if (Array.isArray(parsed)) return parsed.filter((p): p is DisabilityProfile => DISABILITY_PROFILE_VALUES.includes(p))
-    if (parsed !== null && typeof parsed === 'object') return []
-    return []
-  } catch {
-    return []
-  }
-}
-
 function loadFromStorage<T>(key: string, fallback: T): T {
   try {
     const stored = localStorage.getItem(key)
@@ -85,20 +68,65 @@ function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+const VALID_DISABILITY_PROFILES: DisabilityProfile[] = ['visual', 'hearing', 'cognitive', 'dyslexia', 'motor']
+
+function parseDisabilityProfiles(raw: unknown): DisabilityProfile[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter(
+    (v): v is DisabilityProfile =>
+      typeof v === 'string' && VALID_DISABILITY_PROFILES.includes(v as DisabilityProfile),
+  )
+}
+
 export function AccessibilityProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth()
   const [preferences, setPreferencesState] = useState<UserPreferences>(() =>
     loadFromStorage(PREFERENCES_KEY, defaultPreferences),
   )
-  const [disabilityProfile, setDisabilityProfileState] = useState<DisabilityProfile[]>(loadDisabilityProfileFromStorage)
+  const [disabilityProfiles, setDisabilityProfilesState] = useState<DisabilityProfile[]>(() => {
+    const stored = loadFromStorage<DisabilityProfile[] | DisabilityProfile | null>(PROFILE_KEY, [])
+    if (Array.isArray(stored)) return parseDisabilityProfiles(stored)
+    if (stored && VALID_DISABILITY_PROFILES.includes(stored)) return [stored]
+    return []
+  })
   const [speechStatus, setSpeechStatus] = useState<SpeechStatus>('idle')
   const [speechCurrentTime, setSpeechCurrentTime] = useState(0)
   const [speechDuration, setSpeechDuration] = useState(0)
   const [spokenText, setSpokenText] = useState('')
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>(getSystemTheme)
+  const profileFetchedForUser = useRef<string | null>(null)
 
   // Use ref to avoid stale closures in callbacks
   const speechStatusRef = useRef<SpeechStatus>('idle')
   speechStatusRef.current = speechStatus
+
+  // When user logs in, fetch their profile from Supabase and set state (+ localStorage)
+  useEffect(() => {
+    if (!user?.id) {
+      profileFetchedForUser.current = null
+      return
+    }
+    if (profileFetchedForUser.current === user.id) return
+    profileFetchedForUser.current = user.id
+
+    supabase
+      .from('profiles')
+      .select('disability_profiles, preferences')
+      .eq('id', user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (error || !data) return
+        const prefs = {
+          ...defaultPreferences,
+          ...(data.preferences as Partial<UserPreferences>),
+        } as UserPreferences
+        const profiles = parseDisabilityProfiles(data.disability_profiles)
+        setPreferencesState(prefs)
+        setDisabilityProfilesState(profiles)
+        localStorage.setItem(PREFERENCES_KEY, JSON.stringify(prefs))
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles))
+      })
+  }, [user?.id])
 
   const isSpeaking = speechStatus === 'playing'
 
@@ -126,17 +154,9 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(prefs))
   }, [])
 
-  const setDisabilityProfile = useCallback((profiles: DisabilityProfile[]) => {
-    setDisabilityProfileState(profiles)
+  const setDisabilityProfiles = useCallback((profiles: DisabilityProfile[]) => {
+    setDisabilityProfilesState(profiles)
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles))
-  }, [])
-
-  const toggleDisability = useCallback((type: DisabilityProfile) => {
-    setDisabilityProfileState((prev) => {
-      const next = prev.includes(type) ? prev.filter((p) => p !== type) : [...prev, type]
-      localStorage.setItem(PROFILE_KEY, JSON.stringify(next))
-      return next
-    })
   }, [])
 
   const setTheme = useCallback((mode: ThemeMode) => {
@@ -279,9 +299,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
       value={{
         preferences,
         setPreferences,
-        disabilities: disabilityProfile,
-        setDisabilities: setDisabilityProfile,
-        toggleDisability,
+        disabilityProfiles,
+        setDisabilityProfiles,
         speak,
         stopSpeaking,
         pauseSpeaking,

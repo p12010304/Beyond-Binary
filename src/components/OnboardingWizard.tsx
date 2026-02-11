@@ -15,9 +15,11 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
 import { useAccessibility } from '@/components/AccessibilityProvider'
+import { useAuth } from '@/hooks/useSupabase'
+import { supabase } from '@/lib/supabaseClient'
 import type { DisabilityProfile, UserPreferences } from '@/lib/types'
 import { defaultPreferences } from '@/lib/types'
-import { profilePresets, applyProfilePreset, getProfilePreset } from '@/lib/profilePresets'
+import { mergeProfilePresets, getMergedPreset } from '@/lib/profilePresets'
 
 const ONBOARDING_KEY = 'accessadmin_onboarding_complete'
 
@@ -64,7 +66,8 @@ interface OnboardingWizardProps {
 }
 
 export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
-  const { setPreferences, setDisabilities } = useAccessibility()
+  const { user } = useAuth()
+  const { setPreferences, setDisabilityProfiles } = useAccessibility()
   const [step, setStep] = useState(0)
   const [selectedProfiles, setSelectedProfiles] = useState<DisabilityProfile[]>([])
   const [previewPrefs, setPreviewPrefs] = useState<UserPreferences>({ ...defaultPreferences })
@@ -118,27 +121,35 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step])
 
-  // When profiles change, merge presets for preview prefs
+  // When profiles change, compute merged preview prefs
   useEffect(() => {
-    if (selectedProfiles.length === 0) {
-      setPreviewPrefs({ ...defaultPreferences })
+    if (selectedProfiles.length > 0) {
+      const merged = mergeProfilePresets(selectedProfiles)
+      setPreviewPrefs({ ...defaultPreferences, ...merged } as UserPreferences)
     } else {
-      let prefs = { ...defaultPreferences }
-      for (const p of selectedProfiles) {
-        prefs = applyProfilePreset(prefs, p)
-      }
-      setPreviewPrefs(prefs)
+      setPreviewPrefs({ ...defaultPreferences })
     }
   }, [selectedProfiles])
 
-  const handleFinish = useCallback(() => {
-    setDisabilities(selectedProfiles)
-    if (selectedProfiles.length > 0) {
-      setPreferences(previewPrefs)
+  const handleFinish = useCallback(async () => {
+    setDisabilityProfiles(selectedProfiles)
+    setPreferences(previewPrefs)
+    if (user?.id) {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: user.id,
+            disability_profiles: selectedProfiles,
+            preferences: previewPrefs as unknown as Record<string, unknown>,
+          },
+          { onConflict: 'id' },
+        )
+      if (error) console.error('Failed to save profile to Supabase:', error)
     }
     localStorage.setItem(ONBOARDING_KEY, 'true')
     onComplete()
-  }, [selectedProfiles, previewPrefs, setDisabilities, setPreferences, onComplete])
+  }, [selectedProfiles, previewPrefs, setDisabilityProfiles, setPreferences, onComplete, user?.id])
 
   const handleSkip = useCallback(() => {
     localStorage.setItem(ONBOARDING_KEY, 'true')
@@ -148,7 +159,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const nextStep = () => setStep((s) => Math.min(s + 1, 3))
   const prevStep = () => setStep((s) => Math.max(s - 1, 0))
 
-  const preset = getProfilePreset(selectedProfiles)
+  const preset = getMergedPreset(selectedProfiles)
 
   // Settings preview labels
   const prefsPreview = [
@@ -239,13 +250,13 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-semibold tracking-tight">Choose Your Profiles</h2>
+                <h2 className="text-lg font-semibold tracking-tight">Choose Your Profile</h2>
                 <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  Select one or more profiles that match your needs. This will auto-configure the app for you.
+                  Select the profile that best matches your needs. This will auto-configure the app for you.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label="Choose your accessibility profiles (select one or more)">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="group" aria-label="Choose your accessibility profile">
                 {profileOptions.map((opt) => {
                   const isSelected = selectedProfiles.includes(opt.value)
                   return (
@@ -378,7 +389,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 <div>
                   <h2 className="text-lg font-semibold tracking-tight">You're All Set</h2>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    {preset
+                    {selectedProfiles.length > 0 && preset
                       ? `Your workspace is configured for ${preset.label}.`
                       : 'Your workspace is ready with default settings.'}
                   </p>
@@ -434,7 +445,6 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
             {step < 3 ? (
               <Button
                 onClick={nextStep}
-                disabled={step === 1 && selectedProfiles.length === 0}
                 aria-label={step === 2 ? 'Confirm settings and continue' : `Go to step ${step + 2}: ${STEP_TITLES[step + 1]}`}
               >
                 {step === 2 ? 'Confirm' : 'Next'}

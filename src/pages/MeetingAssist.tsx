@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { AlertCircle, Info } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
 import MeetingControls from '@/components/MeetingControls'
 import SpeechPlayer from '@/components/SpeechPlayer'
 import TranscriptDisplay from '@/components/TranscriptDisplay'
@@ -12,7 +11,6 @@ import { useTranscription } from '@/hooks/useTranscription'
 import { useVoiceNavigation } from '@/hooks/useVoiceNavigation'
 import { useAccessibility } from '@/components/AccessibilityProvider'
 import { summarizeMeeting } from '@/services/aiService'
-import { generateMeetingPDF } from '@/lib/pdfGenerator'
 import type { AISummaryResult, ActionItem } from '@/lib/types'
 
 export default function MeetingAssist() {
@@ -29,10 +27,10 @@ export default function MeetingAssist() {
   } = useTranscription()
 
   const { registerAction } = useVoiceNavigation()
-  const { speak, stopSpeaking, speechStatus, vibrate, preferences, disabilities, wantsSimplified } = useAccessibility()
+  const { speak, stopSpeaking, speechStatus, vibrate, preferences, disabilityProfiles, wantsSimplified } = useAccessibility()
 
-  const isHearing = disabilities.includes('hearing')
-  const isCognitive = disabilities.includes('cognitive')
+  const isHearing = disabilityProfiles.includes('hearing')
+  const isCognitive = disabilityProfiles.includes('cognitive')
 
   const [summary, setSummary] = useState<AISummaryResult | null>(null)
   const [actionItems, setActionItems] = useState<ActionItem[]>([])
@@ -303,40 +301,11 @@ export default function MeetingAssist() {
 
       {summary && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="space-y-1">
-              <CardTitle>Summary</CardTitle>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => generateMeetingPDF(summary, transcript)}
-              aria-label="Export summary to PDF"
-              className="ml-auto"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export PDF
-            </Button>
+          <CardHeader>
+            <CardTitle>Summary</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 pt-4">
+          <CardContent className="space-y-4">
             <p className="text-sm leading-relaxed">{summary.summary}</p>
-            
-            {summary.tone_analysis && (
-              <div className="rounded-md bg-muted/50 p-3 mt-4">
-                <h4 className="text-sm font-medium mb-1 flex items-center gap-2">
-                  Tone Analysis
-                  {summary.sentiment && (
-                    <Badge variant={
-                      summary.sentiment === 'positive' || summary.sentiment === 'collaborative' ? 'secondary' : 
-                      summary.sentiment === 'negative' || summary.sentiment === 'tense' ? 'destructive' : 'outline'
-                    } className="text-[10px] h-5 px-1.5">
-                      {summary.sentiment}
-                    </Badge>
-                  )}
-                </h4>
-                <p className="text-sm text-muted-foreground">{summary.tone_analysis}</p>
-              </div>
-            )}
 
             {summary.key_topics.length > 0 && (
               <div>

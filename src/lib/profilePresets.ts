@@ -149,36 +149,72 @@ export function applyProfilePreset(
   }
 }
 
-/** Get merged preset for one or more profiles; null when array is empty */
-export function getProfilePreset(
+const FONT_SIZE_ORDER = { normal: 0, large: 1, 'extra-large': 2 } as const
+
+/** Merge preferences from multiple profiles: union output_mode, max booleans, largest font_size */
+export function mergeProfilePresets(
   profiles: DisabilityProfile[],
-): ProfilePreset | null {
-  if (!profiles.length) return null
-  if (profiles.length === 1) return profilePresets[profiles[0]] ?? null
-  return getMergedPreset(profiles)
+): Partial<UserPreferences> {
+  if (profiles.length === 0) return {}
+  const prefs = profiles.map((p) => profilePresets[p]?.preferencesOverride ?? {})
+  const outputMode = Array.from(
+    new Set(prefs.flatMap((p) => p.output_mode ?? [])),
+  ) as UserPreferences['output_mode']
+  const fontSize = prefs.reduce<UserPreferences['font_size']>(
+    (best, p) =>
+      (p.font_size && FONT_SIZE_ORDER[p.font_size] > FONT_SIZE_ORDER[best]
+        ? p.font_size
+        : best) as UserPreferences['font_size'],
+    'normal',
+  )
+  const ttsVoice =
+    prefs.find((p) => p.tts_voice)?.tts_voice ?? undefined
+  return {
+    output_mode: outputMode.length > 0 ? outputMode : undefined,
+    font_size: fontSize,
+    high_contrast: prefs.some((p) => p.high_contrast) || undefined,
+    reduced_motion: prefs.some((p) => p.reduced_motion) || undefined,
+    haptic_feedback: prefs.some((p) => p.haptic_feedback) || undefined,
+    auto_tts: prefs.some((p) => p.auto_tts) || undefined,
+    simplified_ui: prefs.some((p) => p.simplified_ui) || undefined,
+    tts_voice: ttsVoice,
+  }
 }
 
-/** Merge multiple profile presets (tips, recommendedFeatures, preferencesOverride) */
-function getMergedPreset(profiles: DisabilityProfile[]): ProfilePreset {
-  const first = profilePresets[profiles[0]]
-  let merged: ProfilePreset = {
-    ...first,
-    label: profiles.length > 1 ? 'Multiple profiles' : first.label,
-    persona: first.persona,
-    personaStory: first.personaStory,
-    description: first.description,
-    preferencesOverride: { ...first.preferencesOverride },
-    tips: [...first.tips],
-    recommendedFeatures: [...first.recommendedFeatures],
-    primaryModalities: [...first.primaryModalities],
+/** Get a merged preset for multiple profiles (tips, recommendedFeatures, label) */
+export function getMergedPreset(
+  profiles: DisabilityProfile[],
+): ProfilePreset | null {
+  if (profiles.length === 0) return null
+  if (profiles.length === 1) return profilePresets[profiles[0]] ?? null
+  const presets = profiles
+    .map((p) => profilePresets[p])
+    .filter((p): p is ProfilePreset => p != null)
+  if (presets.length === 0) return null
+  const tips = Array.from(new Set(presets.flatMap((p) => p.tips)))
+  const recommendedFeatures = Array.from(
+    new Set(presets.flatMap((p) => p.recommendedFeatures)),
+  )
+  const label = presets.map((p) => p.label).join(' + ')
+  const preferencesOverride = mergeProfilePresets(profiles) as Partial<UserPreferences>
+  return {
+    label,
+    persona: presets[0].persona,
+    personaStory: presets[0].personaStory,
+    description: presets.map((p) => p.description).join(' '),
+    preferencesOverride,
+    tips,
+    recommendedFeatures,
+    primaryModalities: Array.from(
+      new Set(presets.flatMap((p) => p.primaryModalities)),
+    ),
   }
-  for (let i = 1; i < profiles.length; i++) {
-    const p = profilePresets[profiles[i]]
-    if (!p) continue
-    Object.assign(merged.preferencesOverride, p.preferencesOverride)
-    merged.tips = [...new Set([...merged.tips, ...p.tips])]
-    merged.recommendedFeatures = [...new Set([...merged.recommendedFeatures, ...p.recommendedFeatures])]
-    merged.primaryModalities = [...new Set([...merged.primaryModalities, ...p.primaryModalities])]
-  }
-  return merged
+}
+
+/** Get preset for a single profile, or null if no profile */
+export function getProfilePreset(
+  profile: DisabilityProfile | null,
+): ProfilePreset | null {
+  if (!profile) return null
+  return profilePresets[profile] ?? null
 }

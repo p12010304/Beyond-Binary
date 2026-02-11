@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertCircle, LogIn, RefreshCw, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import EmailSummary from '@/components/EmailSummary'
 import DocumentScanner from '@/components/DocumentScanner'
 import ModalityBadges from '@/components/ModalityBadges'
-import { hasValidToken, loadGapiScript, loadGisScript, requestAccessToken } from '@/lib/googleAuth'
+import { getGoogleAccessToken } from '@/lib/googleAccessToken'
+import { loadGapiScript, loadGisScript, requestAccessToken } from '@/lib/googleAuth'
 import { fetchEmails } from '@/services/documentService'
 import { useAccessibility } from '@/components/AccessibilityProvider'
 
@@ -18,15 +19,24 @@ interface EmailData {
 }
 
 export default function Documents() {
-  const [isAuthenticated, setIsAuthenticated] = useState(hasValidToken())
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [emails, setEmails] = useState<EmailData[]>([])
   const [loadingEmails, setLoadingEmails] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
-  const { speak, disabilities, wantsSimplified, wantsVoice } = useAccessibility()
+  const { speak, disabilityProfiles, wantsSimplified, wantsVoice } = useAccessibility()
 
-  const isCognitive = disabilities.includes('cognitive')
-  const isVisual = disabilities.includes('visual')
+  const isCognitive = disabilityProfiles.includes('cognitive')
+  const isVisual = disabilityProfiles.includes('visual')
+
+  useEffect(() => {
+    getGoogleAccessToken().then((token) => setIsAuthenticated(!!token))
+  }, [])
+
+  useEffect(() => {
+    if (isAuthenticated) loadEmailsData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load when authenticated (Supabase token or Connect)
+  }, [isAuthenticated])
 
   // Cognitive: fewer emails; visual: full set
   const maxEmails = isCognitive ? 5 : 10

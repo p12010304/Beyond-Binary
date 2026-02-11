@@ -22,11 +22,11 @@ export default function PromptHub() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
-  const { speak, preferences, disabilities, wantsSimplified } = useAccessibility()
+  const { speak, preferences, disabilityProfiles, wantsSimplified } = useAccessibility()
 
-  const isCognitive = disabilities.includes('cognitive')
-  const isDyslexia = disabilities.includes('dyslexia')
-  const isVisual = disabilities.includes('visual')
+  const isCognitive = disabilityProfiles.includes('cognitive')
+  const isDyslexia = disabilityProfiles.includes('dyslexia')
+  const isVisual = disabilityProfiles.includes('visual')
   const showFewerTemplates = isCognitive || isDyslexia
 
   // Auto-focus textarea for visual profile
